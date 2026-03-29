@@ -1,0 +1,21 @@
+# Python and Environments
+.venv/
+__pycache__/
+*.pyc
+
+# Media (The heavy lifting)
+*.mp3
+*.wav
+*.mp4
+*.mov
+*.mkv
+*.heic
+*.png
+*.jpg
+*.jpeg
+*.aiff
+
+# Local Documentation & Junk
+.DS_Store
+notes.txt
+backups_old/
