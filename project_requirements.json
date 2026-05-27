@@ -1,0 +1,16 @@
+{
+  "project": "Karaoke_Dashboard",
+  "menu_options": {
+    "1": "Import Assets (Vocal, Inst, Mixed, Lyrics, Background) - Copy to inputs/",
+    "2": "Create Karaoke Video (Instrumental) - Render from inputs/ to outputs/",
+    "3": "Create Lyrics Video (Mixed) - Render from inputs/ to outputs/",
+    "4": "Push Scripts to GitHub - Git add/commit/push",
+    "5": "Exit"
+  },
+  "technical_requirements": [
+    "Use osascript for file picking with type filtering (mp3/wav, ass/srt, jpg/png/mp4/mov)",
+    "Copy files to ~/myKaraoke/inputs/",
+    "Dashboard should display current file list using 'ls -1' on inputs/ directory",
+    "Maintain chmod +x permissions on scripts"
+  ]
+}
