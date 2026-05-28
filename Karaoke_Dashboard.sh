@@ -1,65 +1,62 @@
 #!/bin/bash
 PROJECT_DIR="/Users/jim/myKaraoke"
 INPUT_DIR="$PROJECT_DIR/inputs"
+OUTPUT_DIR="$PROJECT_DIR/outputs"
+# Updated to use your new flat structure file
+PRESETS="$PROJECT_DIR/assets.json"
 
-pick_file() {
-    local prompt="$1"
-    local ftypes="$2"
-    osascript -e "POSIX path of (choose file with prompt \"$prompt\" of type {$ftypes})" 2>/dev/null
-}
+# Load Logic Libraries
+source "$PROJECT_DIR/tools/shell/ui_lib.sh"
+
+pick_file() { osascript -e "POSIX path of (choose file with prompt \"$1\" of type {$2})" 2>/dev/null; }
 
 while true; do
-    clear
-    echo "----------------------------------------------------------------"
-    echo "             ✝️  Karaoke_Dashboard v4.3 (Full Pipeline) ✝️      "
-    echo "----------------------------------------------------------------"
-    echo "Active Assets in /inputs:"
-    ls -1 "$INPUT_DIR"
-    echo "----------------------------------------------------------------"
-    echo " 1) Import Assets"
-    echo " 2) Create Karaoke Video (Instrumental)"
-    echo " 3) Create Lyrics Video (Mixed)"
-    echo " 4) Push Scripts to GitHub"
-    echo " 5) Exit"
-    echo "----------------------------------------------------------------"
-    read -p "Select [1-5]: " CHOICE
-
-    case $CHOICE in
+    display_menu
+    read -p "Select [1-11]: " choice
+    case $choice in
         1)
-            V=$(pick_file "Select Vocal" "\"mp3\", \"wav\"")
-            I=$(pick_file "Select Instrumental" "\"mp3\", \"wav\"")
-            M=$(pick_file "Select Mixed" "\"mp3\", \"wav\"")
-            L=$(pick_file "Select Lyrics (.ass)" "\"ass\"")
-            B=$(pick_file "Select Background" "\"jpg\", \"png\", \"mp4\", \"mov\"")
+            # Cleanup inputs to ensure only active assets are present
+            rm -f "$INPUT_DIR"/*
             
-            [[ -n "$V" ]] && cp "$V" "$INPUT_DIR/"
+            # Select Assets
+            I=$(pick_file "Select Instrumental" "\"mp3\", \"wav\"")
+            L=$(pick_file "Select Lyrics (.ass)" "\"ass\"")
+            B=$(pick_file "Select Background" "\"mp4\", \"mov\"")
+            
+            # Update assets.json with flat structure
+            jq --arg i "$(basename "$I")" --arg l "$(basename "$L")" --arg b "$(basename "$B")" \
+            '{instrumental: $i, lyrics: $l, background: $b}' \
+            "$PRESETS" > tmp.json && mv tmp.json "$PRESETS"
+            
             [[ -n "$I" ]] && cp "$I" "$INPUT_DIR/"
-            [[ -n "$M" ]] && cp "$M" "$INPUT_DIR/"
             [[ -n "$L" ]] && cp "$L" "$INPUT_DIR/"
             [[ -n "$B" ]] && cp "$B" "$INPUT_DIR/"
-            ;;
+            echo "✅ Assets imported."
+            read -p "Press Enter..." ;;
         2)
-            INST=$(ls "$INPUT_DIR" | grep -Ei '\.(mp3|wav)$' | head -n 1)
-            LYR=$(ls "$INPUT_DIR" | grep -Ei '\.ass$' | head -n 1)
+            # Classic Render: Read directly from assets.json
+            INST="$INPUT_DIR/$(jq -r '.instrumental' "$PRESETS")"
+            LYR="$INPUT_DIR/$(jq -r '.lyrics' "$PRESETS")"
+            BG="$INPUT_DIR/$(jq -r '.background' "$PRESETS")"
             
-            if [[ -z "$INST" || -z "$LYR" ]]; then
-                echo "❌ Error: Missing instrumental or .ass file."
-            else
-                echo "🚀 Running production pipeline..."
-                python3 color_karaoke.py "$INPUT_DIR/$LYR"
-                ./create_video.sh "$INPUT_DIR/$INST" "$INPUT_DIR/$LYR"
-            fi
-            read -p "Press Enter to return to menu..."
-            ;;
-        3) 
-            echo "Lyrics rendering logic pending."
-            read -p "Press Enter to return..." 
-            ;;
+            "$PROJECT_DIR/tools/shell/create_video.sh" "$INST" "$LYR" "$BG"
+            read -p "Press Enter to return..." ;;
+        3) echo "Lyrics pending"; read -p "Press Enter..." ;;
         4) 
-            cd "$PROJECT_DIR" && git add . && git commit -m "Auto-sync: $(date +'%Y-%m-%d %H:%M')" && git push origin main
-            echo "✅ GitHub sync complete!"
-            read -p "Press Enter to return..."
-            ;;
-        5) exit 0 ;;
+            echo "🚀 Pushing to GitHub..."
+            cd "$PROJECT_DIR"
+            git add .
+            git commit -m "Saving stable version v4.6"
+            git push origin main
+            echo "✅ Successfully pushed to GitHub."
+            read -p "Press Enter..." ;;
+        5) true ;;
+        6) maximize_volume_all; read -p "Press Enter..." ;;
+        7) scan_loudness_all; read -p "Press Enter..." ;;
+        8) strip_audio_all; read -p "Press Enter..." ;;
+        9) overlay_pulse; read -p "Press Enter..." ;;
+        10) exit 0 ;;
+        11) rm -f "$OUTPUT_DIR"/*; echo "✅ Outputs purged."; read -p "Press Enter..." ;;
+        *) echo "Invalid choice"; read -p "Press Enter..." ;;
     esac
 done

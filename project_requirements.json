@@ -11,6 +11,7 @@
     "Use osascript for file picking with type filtering (mp3/wav, ass/srt, jpg/png/mp4/mov)",
     "Copy files to ~/myKaraoke/inputs/",
     "Dashboard should display current file list using 'ls -1' on inputs/ directory",
-    "Maintain chmod +x permissions on scripts"
+    "Maintain chmod +x permissions on scripts",
+    "CORE INTEGRITY CONSTRAINT: Do not remove, prune, or simplify existing library calls, helper functions, or logic blocks unless explicitly requested by the user."
   ]
 }
