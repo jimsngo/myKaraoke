@@ -1,9 +1,20 @@
-# Python and Environments
+# --- Ignore EVERYTHING by default ---
+/*
+!/.gitignore
+
+# --- Whitelist: Only allow specific folders and file types ---
+!/tools/
+!/tools/**/
+!*.sh
+!*.py
+!*.json
+
+# --- Explicitly ignore the heavy stuff in whitelisted folders ---
 .venv/
 __pycache__/
 *.pyc
-
-# Media (The heavy lifting)
+.DS_Store
+backups_old/
 *.mp3
 *.wav
 *.mp4
@@ -14,8 +25,3 @@ __pycache__/
 *.jpg
 *.jpeg
 *.aiff
-
-# Local Documentation & Junk
-.DS_Store
-notes.txt
-backups_old/

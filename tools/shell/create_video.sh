@@ -1,15 +1,50 @@
 #!/bin/bash
-PROJECT_DIR="/Users/jim/myKaraoke"
-INPUT_DIR="$PROJECT_DIR/inputs"
-OUTPUT_DIR="$PROJECT_DIR/outputs"
 
-AUDIO_FILE="$1"
-ASS_FILE="$2"
-BG_FILE="$3"
-OUTPUT_FILE="$OUTPUT_DIR/$(basename "${AUDIO_FILE%.*}")_final.mp4"
+# 1. Self-detect the project directory (The folder where THIS script is located)
+# This finds the directory of the script, then moves up one level to the project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-echo "🚀 Rendering (Classic)..."
-ffmpeg -y -stream_loop -1 -i "$BG_FILE" -i "$AUDIO_FILE" \
-    -vf "subtitles='$ASS_FILE'" \
-    -map 0:v -map 1:a -c:v libx264 -crf 23 -preset medium \
-    -c:a aac -b:a 192k -shortest "$OUTPUT_FILE"
+create_karaoke() {
+    local INST="$1"
+    local SUB="$2"
+    local BG="$3"
+
+    # 2. Force the output folder into the project root
+    local OUTPUT_DIR="$PROJECT_ROOT/outputs"
+    mkdir -p "$OUTPUT_DIR"
+    
+    local FILENAME=$(basename "$INST")
+    local SONG_NAME="${FILENAME%.*}"
+    local OUTPUT_FILE="$OUTPUT_DIR/${SONG_NAME}_karaoke.mp4"
+
+    # 3. Validation
+    if [[ ! -f "$INST" ]]; then
+        echo "❌ Error: Instrumental file not found at: $INST"
+        return 1
+    fi
+
+    # 4. Get Audio Duration
+    local DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INST")
+
+    echo "🎬 Rendering Karaoke for: $SONG_NAME"
+    echo "Saving to: $OUTPUT_FILE"
+
+    # 5. FFmpeg Command
+    local VF_FILTER=""
+    [[ -f "$SUB" ]] && VF_FILTER="subtitles='${SUB//\'/\\\'}'"
+
+    ffmpeg -y -stream_loop -1 -i "$BG" -i "$INST" \
+           ${VF_FILTER:+-vf "$VF_FILTER"} \
+           -t "$DURATION" \
+           -c:v libx264 -crf 20 -c:a aac -b:a 192k "$OUTPUT_FILE"
+    
+    # Only show success if FFmpeg actually finished
+    if [ $? -eq 0 ]; then
+        echo "✅ Success! Karaoke saved to: $OUTPUT_FILE"
+    else
+        echo "❌ FFmpeg failed to render the video."
+    fi
+}
+
+create_karaoke "$1" "$2" "$3"

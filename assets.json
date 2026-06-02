@@ -1,5 +1,6 @@
 {
-  "instrumental": "Bay-Ngay-Doi-Mong-Female-Instrumental.mp3",
-  "lyrics": "Bay-Ngay-Doi-Mong-Female.ass",
-  "background": "running_stream_no_audio.mp4"
+  "mixed_audio": "optimized_mixed_audio.mp3",
+  "instruments_only": "optimized_instruments.mp3",
+  "subtitles": "Một_Mình_Thanh_Tùng.ass",
+  "background": "optimized_background.mp4"
 }
