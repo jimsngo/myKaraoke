@@ -1,50 +1,39 @@
 #!/bin/bash
+PROJECT_ROOT="/Users/jim/myKaraoke"
+PRESETS="$PROJECT_ROOT/assets.json"
+INPUT_DIR="$PROJECT_ROOT/inputs"
+OUTPUT_DIR="$PROJECT_ROOT/outputs"
 
-# 1. Self-detect the project directory (The folder where THIS script is located)
-# This finds the directory of the script, then moves up one level to the project root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+# Load inputs from JSON if arguments are missing
+INST="${1:-$INPUT_DIR/$(jq -r '.instruments_only' "$PRESETS")}"
+SUB="${2:-$INPUT_DIR/$(jq -r '.subtitles' "$PRESETS")}"
+BG="${3:-$INPUT_DIR/$(jq -r '.background' "$PRESETS")}"
 
-create_karaoke() {
-    local INST="$1"
-    local SUB="$2"
-    local BG="$3"
+# Ensure output directory exists
+mkdir -p "$OUTPUT_DIR"
 
-    # 2. Force the output folder into the project root
-    local OUTPUT_DIR="$PROJECT_ROOT/outputs"
-    mkdir -p "$OUTPUT_DIR"
-    
-    local FILENAME=$(basename "$INST")
-    local SONG_NAME="${FILENAME%.*}"
-    local OUTPUT_FILE="$OUTPUT_DIR/${SONG_NAME}_karaoke.mp4"
+# Generate a valid output filename
+FILENAME=$(basename "$INST")
+SONG_NAME="${FILENAME%.*}"
+OUTPUT_FILE="$OUTPUT_DIR/${SONG_NAME}_karaoke.mp4"
 
-    # 3. Validation
-    if [[ ! -f "$INST" ]]; then
-        echo "❌ Error: Instrumental file not found at: $INST"
-        return 1
-    fi
+# Validate
+if [[ ! -f "$INST" ]]; then
+    echo "❌ Error: Instrumental file not found at: $INST"
+    exit 1
+fi
 
-    # 4. Get Audio Duration
-    local DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INST")
+# Get Duration
+DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$INST")
 
-    echo "🎬 Rendering Karaoke for: $SONG_NAME"
-    echo "Saving to: $OUTPUT_FILE"
+# FFmpeg Command (Force mapping!)
+VF_FILTER=""
+[[ -f "$SUB" ]] && VF_FILTER="subtitles='${SUB//\'/\\\'}'"
 
-    # 5. FFmpeg Command
-    local VF_FILTER=""
-    [[ -f "$SUB" ]] && VF_FILTER="subtitles='${SUB//\'/\\\'}'"
-
-    ffmpeg -y -stream_loop -1 -i "$BG" -i "$INST" \
-           ${VF_FILTER:+-vf "$VF_FILTER"} \
-           -t "$DURATION" \
-           -c:v libx264 -crf 20 -c:a aac -b:a 192k "$OUTPUT_FILE"
-    
-    # Only show success if FFmpeg actually finished
-    if [ $? -eq 0 ]; then
-        echo "✅ Success! Karaoke saved to: $OUTPUT_FILE"
-    else
-        echo "❌ FFmpeg failed to render the video."
-    fi
-}
-
-create_karaoke "$1" "$2" "$3"
+echo "🎬 Rendering Karaoke..."
+ffmpeg -y -stream_loop -1 -i "$BG" -i "$INST" \
+       ${VF_FILTER:+-vf "$VF_FILTER"} \
+       -map 0:v:0 -map 1:a:0 \
+       -t "$DURATION" \
+       -c:v libx264 -c:a aac -b:a 192k \
+       "$OUTPUT_FILE"

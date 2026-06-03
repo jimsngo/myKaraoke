@@ -1,27 +1,52 @@
-#!/bin/bash
 demucs_split() {
-    local INPUT_FILE=$(osascript -e 'POSIX path of (choose file with prompt "Select song to split:")' 2>/dev/null)
+    # 1. Select the file
+    local INPUT_FILE=$(pick_file "Select a mixed_audio track to split stems:" "mp3,wav,aiff,flac")
     [[ -z "$INPUT_FILE" ]] && return 1
 
+    # 2. Get file details
+    local EXT="${INPUT_FILE##*.}"
+    local BASE_NAME=$(basename "$INPUT_FILE")
+    local TRACK_NAME="${BASE_NAME%.*}"
     local STEMS_DIR="$INPUT_DIR/stems"
-    rm -rf "$STEMS_DIR"/*
     
-    echo "🎵 Splitting stems with Demucs (Manual CLI)..."
-    
-    # We call 'demucs' as a direct binary instead of 'python3 -m demucs.separate'
-    # This often bypasses the 'runpy' module's dependency checks.
-    demucs --two-stems=vocals -n htdemucs "$INPUT_FILE" -o "$STEMS_DIR"
-    
-    # Check if files were created
-    local VOCALS=$(find "$STEMS_DIR" -name "vocals.wav" | head -n 1)
-    local INST=$(find "$STEMS_DIR" -name "no_vocals.wav" | head -n 1)
+    # 3. Register input
+    jq --arg f "$BASE_NAME" '.mixed_audio = $f' "$PRESETS" > "$PRESETS.tmp" && mv "$PRESETS.tmp" "$PRESETS"
+    load_assets
 
-    if [[ -f "$VOCALS" && -f "$INST" ]]; then
-        mv "$VOCALS" "$STEMS_DIR/vocals.wav"
-        mv "$INST" "$STEMS_DIR/no_vocals.wav"
-        jq --arg v "vocals.wav" --arg i "no_vocals.wav" '.vocals = $v | .instrumental = $i' "$PRESETS" > tmp.json && mv tmp.json "$PRESETS"
-        echo "✅ Stems ready and registered."
+    echo "🎵 Splitting stems for: $TRACK_NAME..."
+    
+    # 4. Split (Dynamic format matching)
+    if [[ "$EXT" == "mp3" ]]; then
+        demucs --two-stems=vocals --mp3 -n htdemucs "$INPUT_FILE" -o "$STEMS_DIR"
     else
-        echo "⚠️ Files not created. Check terminal output for errors."
+        demucs --two-stems=vocals -n htdemucs "$INPUT_FILE" -o "$STEMS_DIR"
+    fi
+    
+    # 5. Locate and rename with Track Name + Suffix
+    local DEMUCS_OUTPUT_DIR="$STEMS_DIR/htdemucs/$TRACK_NAME"
+    local FOUND_VOCALS=$(find "$DEMUCS_OUTPUT_DIR" -name "vocals.$EXT" | head -n 1)
+    local FOUND_INST=$(find "$DEMUCS_OUTPUT_DIR" -name "no_vocals.$EXT" | head -n 1)
+    
+    if [[ -n "$FOUND_VOCALS" && -n "$FOUND_INST" ]]; then
+        # Use your TRACK_NAME to create custom names
+        local NEW_VOCALS="${TRACK_NAME}_vocals.$EXT"
+        local NEW_INST="${TRACK_NAME}_instruments.$EXT"
+        
+        # Move and rename using the unique names
+        mv "$FOUND_VOCALS" "$INPUT_DIR/$NEW_VOCALS"
+        mv "$FOUND_INST" "$INPUT_DIR/$NEW_INST"
+        
+        # Cleanup the nested Demucs directory
+        rm -rf "$STEMS_DIR/htdemucs"
+        
+        # Update assets.json with the new unique filenames
+        jq --arg i "$NEW_INST" --arg v "$NEW_VOCALS" \
+           '.instruments_only = $i | .vocals_only = $v' \
+           "$PRESETS" > "$PRESETS.tmp" && mv "$PRESETS.tmp" "$PRESETS"
+        
+        load_assets
+        echo "✅ Success: Saved as '$NEW_VOCALS' and '$NEW_INST'."
+    else
+        echo "❌ Error: Could not locate stems."
     fi
 }

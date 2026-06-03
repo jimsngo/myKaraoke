@@ -2,7 +2,7 @@
 # Library: optimize_volume.sh
 optimize_volume() {
     # 1. Select the file
-    local INPUT_FILE=$(osascript -e 'POSIX path of (choose file with prompt "Select audio track:")' 2>/dev/null)
+    local INPUT_FILE=$(pick_file "Select audio track:" "mp3,wav,aiff,flac")
     [[ -z "$INPUT_FILE" ]] && return 1
 
     # 2. Ask for Classification

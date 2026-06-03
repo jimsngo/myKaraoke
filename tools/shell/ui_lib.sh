@@ -1,4 +1,3 @@
-#!/bin/bash
 display_menu() {
     clear
     echo "----------------------------------------------------------------"
@@ -9,12 +8,12 @@ display_menu() {
     echo "----------------------------------------------------------------"
     echo "--- Media Tools ---"
     echo " 1) Split Stems"
-    echo " 2) Optimize Volume"
+    echo " 2) Import Audio Files & Optimize Volume"
     echo " 3) Strip Audio From Video"
-    echo " 4) Join Background Videos"
+    echo " 4) Join & Import Background Videos"
+    echo " 5) Import Subtitles"
     echo ""
     echo "--- Karaoke Tools ---"
-    echo " 6) Import Assets"
     echo " 7) Create Karaoke Video"
     echo " 8) Create Lyrics Video"
     echo ""

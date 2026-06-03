@@ -1,6 +1,7 @@
 {
-  "mixed_audio": "optimized_mixed_audio.mp3",
-  "instruments_only": "optimized_instruments.mp3",
+  "mixed_audio": "Biết_Bao_Giờ_Trở_Lại.mp3",
+  "instruments_only": "Biết_Bao_Giờ_Trở_Lại_instruments.mp3",
+  "vocals_only": "Biết_Bao_Giờ_Trở_Lại_vocals.mp3",
   "subtitles": "Một_Mình_Thanh_Tùng.ass",
   "background": "optimized_background.mp4"
 }
