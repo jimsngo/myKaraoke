@@ -1,7 +1,16 @@
 {
-  "mixed_audio": "Biết_Bao_Giờ_Trở_Lại.mp3",
-  "instruments_only": "Biết_Bao_Giờ_Trở_Lại_instruments.mp3",
-  "vocals_only": "Biết_Bao_Giờ_Trở_Lại_vocals.mp3",
-  "subtitles": "Một_Mình_Thanh_Tùng.ass",
-  "background": "optimized_background.mp4"
+  "inputs": {
+    "main_audio": "inputs/Mixed_Audio/Khuc-Thuy-Du-Male.mp3",
+    "instruments_only": "inputs/Instruments/Khuc-Thuy-Du-Male_instruments.mp3",
+    "vocals_only": "inputs/Vocals/Khuc-Thuy-Du-Male_vocals.mp3",
+    "subtitles_srt": "inputs/Subtitles/Khuc-Thuy-Du-Male.srt",
+    "subtitles_ass": "inputs/Subtitles/Biết_Bao_Giờ_Trở_Lại.ass",
+    "background": "inputs/Background/Yosemeti_optimized_background.mp4",
+    "song_title": "Khúc Thụy Du",
+    "song_author": "Anh Bằng"
+  },
+  "outputs": {
+    "karaoke_video": "outputs/Karaoke/Khuc-Thuy-Du-Male_karaoke.mp4",
+    "lyrics_video": "outputs/Lyrics/Khuc-Thuy-Du-Male_lyrics.mp4"
+  }
 }
