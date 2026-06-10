@@ -1,16 +1,101 @@
 {
   "inputs": {
-    "main_audio": "inputs/Mixed_Audio/Khuc-Thuy-Du-Male.mp3",
-    "instruments_only": "inputs/Instruments/Khuc-Thuy-Du-Male_instruments.mp3",
-    "vocals_only": "inputs/Vocals/Khuc-Thuy-Du-Male_vocals.mp3",
-    "subtitles_srt": "inputs/Subtitles/Khuc-Thuy-Du-Male.srt",
-    "subtitles_ass": "inputs/Subtitles/Biết_Bao_Giờ_Trở_Lại.ass",
-    "background": "inputs/Background/Yosemeti_optimized_background.mp4",
-    "song_title": "Khúc Thụy Du",
-    "song_author": "Anh Bằng"
+    "song_title": "Dĩ Vãng Nhạt Nhòa",
+    "song_author": "Dominic Chow",
+    "mixed_audio": "inputs/Mixed_Audio/Di-Vang-Nhat-Nhoa-Male_mixed.mp3",
+    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male_Instruments.mp3",
+    "vocals_only": "inputs/Vocals/Di-Vang-Nhat-Nhoa-Male_Vocals.mp3",
+    "source_midi": "inputs/midi/Di-Vang-Nhat-Nhoa-Male.mid",
+    "midi_bpm": "70.0",
+    "midi_key": "G-Minor",
+    "seconds_per_beat": "0.8571",
+    "vocalist_gender": "Male",
+    "subtitles_srt": "inputs/subtitles/Di-Vang-Nhat-Nhoa-Male.srt",
+    "subtitles_ass": "inputs/subtitles/Di-Vang-Nhat-Nhoa-Male.ass",
+    "background": "inputs/Background/Yosemeti_optimized_background.mp4"
   },
   "outputs": {
-    "karaoke_video": "outputs/Karaoke/Khuc-Thuy-Du-Male_karaoke.mp4",
-    "lyrics_video": "outputs/Lyrics/Khuc-Thuy-Du-Male_lyrics.mp4"
+    "karaoke_video": "outputs/karaoke/Di-Vang-Nhat-Nhoa-Male_karaoke.mp4",
+    "lyrics_video": "outputs/lyrics/Di-Vang-Nhat-Nhoa-Male_lyrics.mp4"
+  },
+  "dashboard_routing": {
+    "1": {
+      "category": "🌐 Preview Control Room",
+      "label": "Initialize Project Session & Launch Browser Preview Room",
+      "script": "tools/shell/view_dashboard.sh",
+      "function": "open_preview_room"
+    },
+    "2": {
+      "category": "🎼 Audio Stem Engineering",
+      "label": "Process & Populate Stems (Logic Pro Import OR AI Demucs Split)",
+      "script": "tools/shell/ingest_stems_engine.sh",
+      "function": "ingest_stems_engine"
+    },
+    "3": {
+      "category": "🎼 Audio Stem Engineering",
+      "label": "Optimize Track Headroom Peaks (Normalize Gain DB)",
+      "script": "tools/shell/optimized_volume.sh",
+      "function": "optimize_volume"
+    },
+    "4": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Deploy Whisper AI Transcription (Auto-Caption Vocals)",
+      "script": "tools/shell/auto_caption_whisper.sh",
+      "function": "auto_caption_whisper"
+    },
+    "5": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Compile Subtitles From Synth V MIDI Track (Dual Export)",
+      "script": "tools/shell/compile_synthv.sh",
+      "function": "compile_midi_subtitles"
+    },
+    "6": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Import External Production .ASS Subtitle File Layouts",
+      "script": "tools/shell/import_production_ass.sh",
+      "function": "import_ass_subtitles"
+    },
+    "7": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Strip Audio Layer Out From Background Reference Videos",
+      "script": "tools/shell/strip_audio.sh",
+      "function": "strip_audio"
+    },
+    "8": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Import & Optimize Background Scenery Videos",
+      "script": "tools/shell/import_background.sh",
+      "function": "import_background"
+    },
+    "9": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Generate High-Res Final Karaoke Video",
+      "script": "tools/shell/create_video.sh",
+      "function": "create_karaoke_video"
+    },
+    "10": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Generate Alternative Full-Mix Lyrics Presentation Video",
+      "script": "tools/shell/create_lyrics_video.sh",
+      "function": "create_lyrics_video"
+    },
+    "11": {
+      "category": "⚙️  Workspace Management",
+      "label": "Purge Local Render Output Storage Files",
+      "script": "tools/shell/purge_outputs.sh",
+      "function": "purge_outputs"
+    },
+    "12": {
+      "category": "⚙️  Workspace Management",
+      "label": "Synchronize Project Canvas State Safely to GitHub",
+      "script": "tools/shell/git_sync.sh",
+      "function": "git_sync"
+    },
+    "13": {
+      "category": "⚙️  Workspace Management",
+      "label": "Validate Project Assets and Naming Consistency",
+      "script": "tools/shell/validate_assets.sh",
+      "function": "validate_project_assets"
+    }
   }
 }
