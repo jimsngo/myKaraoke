@@ -1,82 +1,93 @@
 #!/bin/bash
-# Library: optimize_volume.sh
+# ==============================================================================
+# 🎵 myKaraoke Project Toolchain — Option 3 Module
+# Script: tools/shell/optimized_volume.sh
+# Purpose: Measures and standardizes audio loudness parameters using ffmpeg loudnorm.
+#
+# Schema Dependency Guards:
+#   👉 Required .inputs Keys: [ mixed_audio, instruments_only ]
+#
+# Safeguard Mechanism:
+#   Intercepts execution immediately during the local variables declaration phase. 
+#   If a key was renamed in assets.json but left un-updated here, it halts execution
+#   instantly to isolate the break, preventing silent downstream analysis failures.
+# ==============================================================================
 
 optimize_volume() {
-    # 1. Reload the latest relative assets from json
-    load_assets
+    # --- Local Environment Variables Block ---
+    local PROJECT_ROOT="/Users/jim/myKaraoke"
+    local PRESETS="$PROJECT_ROOT/assets.json"
+    local JSON_GUARD="$PROJECT_ROOT/tools/shell/validate_json.sh"
 
-    echo "🎛️  Select which track to normalize & optimize volume:"
-    echo " 1) Instruments Only (For Karaoke Video generation)"
-    echo " 2) Mixed Audio      (For Lyrics Video generation)"
-    read -p "Selection [1/2]: " track_choice
+    # 🛠️ SAFEGUARD CHECK: Declare the exact keys this option script relies on to execute
+    local REQUIRED_ASSET_KEYS=(
+        "mixed_audio"
+        "instruments_only"
+    )
 
-    local SOURCE_REL_PATH=""
-    local JSON_KEY=""
-    local FILE_SUFFIX=""
-    local TARGET_DIR=""
-
-    if [[ "$track_choice" == "1" ]]; then
-        SOURCE_REL_PATH="$INSTRUMENTS_ONLY"
-        JSON_KEY="instruments_only"
-        FILE_SUFFIX="instruments_optimized"
-        TARGET_DIR="$INPUT_DIR/Instruments"
-    elif [[ "$track_choice" == "2" ]]; then
-        SOURCE_REL_PATH="$MAIN_AUDIO"
-        JSON_KEY="main_audio"
-        FILE_SUFFIX="mixed_optimized"
-        TARGET_DIR="$INPUT_DIR/Mixed_Audio"
+    if [[ -f "$JSON_GUARD" ]]; then
+        source "$JSON_GUARD"
+        validate_required_keys "$(basename "$0")" "${REQUIRED_ASSET_KEYS[@]}"
     else
-        echo "❌ Invalid choice. Returning to menu."
-        return 1
+        echo "⚠️  Warning: Central validate_json.sh guard missing. Proceeding without safety check..."
     fi
 
-    # Sanity Check: Ensure the target asset exists in the JSON configuration
-    if [[ -z "$SOURCE_REL_PATH" ]]; then
-        echo "❌ Error: No track found registered under '$JSON_KEY' in assets.json!"
-        return 1
-    fi
-
-    # Convert relative path from JSON to absolute path for execution on Mac
-    local ABS_INPUT_PATH="$PROJECT_DIR/$SOURCE_REL_PATH"
-
-    if [[ ! -f "$ABS_INPUT_PATH" ]]; then
-        echo "❌ Error: Physical file missing at $ABS_INPUT_PATH"
-        return 1
-    fi
-
-    # 2. Extract Names for Output Creation
-    local BASE_NAME=$(basename "$ABS_INPUT_PATH")
-    local EXT="${BASE_NAME##*.}"
-    local TRACK_NAME="${BASE_NAME%.*}"
+    # --- Active Audio Processing Pipeline Runs Safely Below ---
+    echo "🔊 Loading target audio assets from database..."
     
-    # Remove older suffix tags if reprocessing an already optimized version
-    TRACK_NAME=$(echo "$TRACK_NAME" | sed -E 's/_(instruments|vocals|mixed)?(_optimized)?$//')
+    local REL_MAIN=$(jq -r '.inputs.mixed_audio // ""' "$PRESETS")
+    local REL_INST=$(jq -r '.inputs.instruments_only // ""' "$PRESETS")
 
-    local NEW_BASE_NAME="${TRACK_NAME}_${FILE_SUFFIX}.$EXT"
-    local ABS_OUTPUT_PATH="$TARGET_DIR/$NEW_BASE_NAME"
-    local REL_OUTPUT_PATH="inputs/$(basename "$TARGET_DIR")/$NEW_BASE_NAME"
+    local ABS_MAIN="$PROJECT_ROOT/$REL_MAIN"
+    local ABS_INST="$PROJECT_ROOT/$REL_INST"
 
-    # 3. Analyze Audio Peak Volume
-    echo "🔍 Analyzing current peak volume level..."
-    local PEAK_DB=$(ffmpeg -i "$ABS_INPUT_PATH" -af "volumedetect" -vn -f null - 2>&1 | grep "max_volume:" | awk '{print $5}')
-    
-    # Calculate target scale matching your previous threshold configuration (-0.2 dB offset safety)
-    local ADJUSTMENT=$(echo "scale=2; 0.0 - $PEAK_DB - 0.2" | bc)
+    echo "Which audio asset layout would you like to standardize?"
+    echo "1) Full Master Mixed Audio Track"
+    echo "2) Instrumental Backing Stem"
+    read -p "Select [1-2]: " target_choice
 
-    echo "📊 Detected Max: ${PEAK_DB} dB | Clean adjustment target: ${ADJUSTMENT} dB"
-    
-    # 4. Process and Save relative updates
-    read -p "Confirm normalization and update assets.json? (y/N): " confirm
-    if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        echo "🚀 Normalizing audio track stream..."
-        ffmpeg -y -i "$ABS_INPUT_PATH" -af "volume=${ADJUSTMENT}dB" "$ABS_OUTPUT_PATH"
-        
-        # Write the updated clean relative path directly back into the inputs sub-block
-        jq --arg k "$JSON_KEY" --arg p "$REL_OUTPUT_PATH" '.inputs[$k] = $p' "$PRESETS" > "$PRESETS.tmp" && mv "$PRESETS.tmp" "$PRESETS"
-        
-        load_assets
-        echo "✅ Success: Saved to '$REL_OUTPUT_PATH' and registered in assets.json!"
+    local TARGET_FILE=""
+    if [[ "$target_choice" == "1" ]]; then
+        TARGET_FILE="$ABS_MAIN"
+    elif [[ "$target_choice" == "2" ]]; then
+        TARGET_FILE="$ABS_INST"
     else
-        echo "⏭️  Operation canceled."
+        echo "⏭️  Selection canceled. Returning to dashboard."
+        return 0
+    fi
+
+    if [[ ! -f "$TARGET_FILE" ]]; then
+        echo "❌ Error: Target audio file missing at: $TARGET_FILE"
+        return 1
+    fi
+
+    echo "🎛️  Running loudness parameter pass on: $(basename "$TARGET_FILE")..."
+
+    local STATS=$(ffmpeg -i "$TARGET_FILE" -filter:a loudnorm=print_format=json -f null - 2>&1 | pcregrep -M '\{[\s\S]*\}')
+    
+    if [[ -z "$STATS" ]]; then
+        echo "❌ Error: Failed to analyze audio dynamics."
+        return 1
+    fi
+
+    local I_INPUT=$(echo "$STATS" | jq -r '.input_i')
+    local TP_INPUT=$(echo "$STATS" | jq -r '.input_tp')
+    local LRA_INPUT=$(echo "$STATS" | jq -r '.input_lra')
+    local thresh_input=$(echo "$STATS" | jq -r '.input_thresh')
+
+    local TEMP_FILE="${TARGET_FILE%.*}_temp.mp3"
+
+    echo "⚡ Applying precision volume normalization adjustments..."
+    ffmpeg -y -i "$TARGET_FILE" -filter:a \
+    "loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=${I_INPUT}:measured_TP=${TP_INPUT}:measured_LRA=${LRA_INPUT}:measured_thresh=${thresh_input}:linear=true" \
+    -b:a 192k "$TEMP_FILE"
+
+    if [[ $? -eq 0 ]] && [[ -f "$TEMP_FILE" ]]; then
+        mv "$TEMP_FILE" "$TARGET_FILE"
+        echo "✅ Headroom peaks safely standardized down into original destination track file!"
+    else
+        echo "❌ Error: ffmpeg failed to export normalized audio file."
+        [[ -f "$TEMP_FILE" ]] && rm -f "$TEMP_FILE"
+        return 1
     fi
 }

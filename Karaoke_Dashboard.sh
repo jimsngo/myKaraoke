@@ -1,82 +1,63 @@
 #!/bin/bash
+# ==============================================================================
+# ⚠️ WARNING: NEVER DELETE OR MODIFY THIS SUMMARY BLOCK. ALL DIRECTIONS MUST BE FOLLOWED.
+# ⚠️ DIRECTIVE: FOLLOW THE assets.json CONFIGURATION WITH ABSOLUTE FIDELITY. NO DEVIATIONS.
+# ==============================================================================
+# 🎵 myKaraoke Project Toolchain — Central Management Dashboard Router
+# Script: Karaoke_Dashboard.sh
+#
+# Reference Blueprint Mapping (From assets.json -> dashboard_routing):
+#   Option 1  -> tools/shell/view_dashboard.sh        (open_preview_room)
+#   Option 2  -> tools/shell/ingest_stems_engine.sh   (ingest_stems_engine)
+#   Option 3  -> tools/shell/optimized_volume.sh      (optimize_volume)
+#   Option 4  -> tools/shell/auto_caption_whisper.sh  (auto_caption_whisper)
+#   Option 5  -> tools/shell/compile_synthv.sh        (compile_midi_subtitles)
+#   Option 6  -> tools/shell/import_production_ass.sh (import_ass_subtitles)
+#   Option 7  -> tools/shell/strip_audio.sh           (strip_audio)
+#   Option 8  -> tools/shell/import_background.sh     (import_background)
+#   Option 9  -> tools/shell/create_video.sh          (create_karaoke_video)
+#   Option 10 -> tools/shell/create_lyrics_video.sh   (create_lyrics_video)
+#   Option 11 -> tools/shell/purge_outputs.sh         (purge_outputs)
+#   Option 12 -> tools/shell/git_sync.sh              (git_sync)
+#   Option 13 -> tools/shell/validate_assets.sh       (validate_project_assets)
+#
+# Guardrails:
+#   1. This script must strictly remain under 50 lines for fast scanning.
+#   2. Zero inline logic allowed. All tasks must route to external subscripts.
+# ==============================================================================
+
 PROJECT_DIR="/Users/jim/myKaraoke"
-INPUT_DIR="$PROJECT_DIR/inputs"
-OUTPUT_DIR="$PROJECT_DIR/outputs"
-PRESETS="$PROJECT_DIR/assets.json"
 
-# Source Sourced Helper Modules (Shared Environment)
-source "$PROJECT_DIR/tools/shell/ui_lib.sh"
-source "$PROJECT_DIR/tools/shell/demucs_split.sh"
-source "$PROJECT_DIR/tools/shell/optimized_volume.sh"
-source "$PROJECT_DIR/tools/shell/strip_audio.sh"
-source "$PROJECT_DIR/tools/shell/import_background.sh"
-
-# --- Global Load Function ---
-load_assets() {
-    export MAIN_AUDIO=$(jq -r '.inputs.main_audio // ""' "$PRESETS")
-    export INSTRUMENTS_ONLY=$(jq -r '.inputs.instruments_only // ""' "$PRESETS")
-    export VOCALS_ONLY=$(jq -r '.inputs.vocals_only // ""' "$PRESETS")
-    export SUBTITLES_SRT=$(jq -r '.inputs.subtitles_srt // ""' "$PRESETS")
-    export SUBTITLES_ASS=$(jq -r '.inputs.subtitles_ass // ""' "$PRESETS")
-    export BACKGROUND=$(jq -r '.inputs.background // ""' "$PRESETS")
-}
-load_assets
-
-# --- Global File Picker Function ---
-pick_file() {
-    local prompt="$1"
-    local extensions="$2"
-    local apple_types=$(echo "$extensions" | sed 's/,/", "/g' | sed 's/^/{"/' | sed 's/$/"}/')
-    osascript -e "return POSIX path of (choose file with prompt \"$prompt\" of type $apple_types)" 2>/dev/null
-}
-
-# --- Import Production ASS Subtitles (Option 6) ---
-import_ass_subtitles() {
-    local FILE=$(pick_file "Select your production .ass subtitle file:" "ass")
-    if [[ -n "$FILE" ]]; then
-        local FILENAME=$(basename "$FILE")
-        mkdir -p "$INPUT_DIR/Subtitles"
-        
-        local TARGET_SUB="$INPUT_DIR/Subtitles/$FILENAME"
-        cp "$FILE" "$TARGET_SUB"
-        
-        local REL_SUB="inputs/Subtitles/$FILENAME"
-        jq --arg p "$REL_SUB" '.inputs.subtitles_ass = $p' "$PRESETS" > "$PRESETS.tmp" && mv "$PRESETS.tmp" "$PRESETS"
-        
-        load_assets
-        echo "✅ Production ASS Subtitles registered: $REL_SUB"
-    else
-        echo "⏭️ Import canceled."
-    fi
-}
+# Source the centralized UI menu renderer
+source "$PROJECT_DIR/tools/shell/ui_lib.sh" || exit 1
 
 while true; do
     display_menu
-    read -p "Select [1-11] or press Enter to exit: " choice
-    
+    echo -n -e "👉 Select option [0-13] (or hit Enter to re-display menu): "
+    read -r choice
+
     if [[ -z "$choice" ]]; then
-        echo "👋 Exiting..."
-        exit 0
+        REFRESH_MENU=true
+        continue
     fi
 
-    case $choice in
-        1) demucs_split; read -p "Press Enter..." ;;
-        2) optimize_volume; read -p "Press Enter..." ;;
-        3) strip_audio; read -p "Press Enter..." ;;
-        4) import_background; read -p "Press Enter..." ;;
-        5) 
-            bash "$PROJECT_DIR/tools/shell/auto_caption_whisper.sh"
-            read -p "Press Enter..." 
-            ;;
-        6) 
-            import_ass_subtitles
-            read -p "Press Enter..." 
-            ;;
-        7) bash "$PROJECT_DIR/view_dashboard.sh" ;;
-        8) bash "$PROJECT_DIR/tools/shell/create_video.sh"; read -p "Press Enter..." ;;
-        9) bash "$PROJECT_DIR/tools/shell/create_lyrics_video.sh"; read -p "Press Enter..." ;;
-        10) rm -rf "$OUTPUT_DIR/Karaoke"/* "$OUTPUT_DIR/Lyrics"/*; echo "✅ Outputs cleanly purged."; read -p "Press Enter..." ;;
-        11) cd "$PROJECT_DIR"; git add .; git commit -m "Update"; git push origin main; read -p "Press Enter..." ;;
-        *) echo "Invalid choice"; read -p "Press Enter..." ;;
-    esac
+    # 🛠️ FIXED: Visual separation block added below input selection execution
+    echo -e "\n⚡ Executing option [$choice] from assets.json blueprint...\n"
+    
+    # Dynamically extract and run the exact script and function mapped in assets.json
+    SCRIPT_PATH=$(jq -r ".dashboard_routing.\"$choice\".script // \"\"" "$PROJECT_DIR/assets.json")
+    FUNC_NAME=$(jq -r ".dashboard_routing.\"$choice\".function // \"\"" "$PROJECT_DIR/assets.json")
+
+    if [[ "$choice" == "0" ]]; then
+        echo "👋 Exiting myKaraoke control room. Keep creating!"
+        exit 0
+    elif [[ -n "$SCRIPT_PATH" && -f "$PROJECT_DIR/$SCRIPT_PATH" ]]; then
+        source "$PROJECT_DIR/$SCRIPT_PATH"
+        $FUNC_NAME
+    else
+        echo "❌ Invalid selection or target library script missing for option [$choice]."
+    fi
+
+    echo ""
+    read -p "Press [Enter] to return to the master dashboard menu..."
 done

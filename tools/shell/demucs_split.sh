@@ -1,85 +1,64 @@
 #!/bin/bash
+# Library: tools/shell/demucs_split.sh
 
 demucs_split() {
-    # 1. Sanity Check / Confirmation Prompt
-    load_assets
-    echo "🔍 [Sanity Check] Checking current track status..."
+    local PROJECT_DIR="/Users/jim/myKaraoke"
+    local INPUT_DIR="$PROJECT_DIR/inputs"
+    local PRESETS="$PROJECT_DIR/assets.json"
     
-    if [[ -n "$MAIN_AUDIO" ]]; then
-        echo "⚠️  Current active song path in assets.json:"
-        echo "    $MAIN_AUDIO"
-        echo ""
-    else
-        echo "ℹ️  No song is currently loaded in assets.json."
-        echo ""
+    # 1. Fetch the already initialized mixed_audio asset path directly from your database
+    local REL_MIXED=$(jq -r '.inputs.mixed_audio // ""' "$PRESETS")
+    local ABS_MIXED="$PROJECT_DIR/$REL_MIXED"
+    
+    if [[ -z "$REL_MIXED" ]] || [[ ! -f "$ABS_MIXED" ]]; then
+        echo "❌ Error: No active mixed_audio session found registered. Please run Option 1 first!"
+        return 1
     fi
 
-    read -p "Do you want to extract stems for a new song? (y/N): " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        echo "⏭️  Operation canceled. Returning to main menu."
-        return 0
+    local FILE_NAME=$(basename "$ABS_MIXED")
+    local TRACK_NAME="${FILE_NAME%_Mixed.*}" # Extracts the clean base song title name prefix
+    local EXT="${FILE_NAME##*.}"
+
+    echo "🤖 Starting AI Stem Separation Engine..."
+    echo "🎵 Target Source Audio: $FILE_NAME"
+    
+    mkdir -p "$INPUT_DIR/instruments" "$INPUT_DIR/vocals" "$INPUT_DIR/stems"
+
+    # Run Demucs explicitly targeting our pre-registered mix
+    demucs --two-stems=vocals -o "$INPUT_DIR/stems" "$ABS_MIXED"
+
+    if [[ $? -ne 0 ]]; then
+        echo "❌ Error: AI Stem extraction processing step failed."
+        return 1
     fi
 
-    # 2. Ensure capitalized subfolder layouts match your blueprint
-    mkdir -p "$INPUT_DIR/Mixed_Audio" "$INPUT_DIR/Instruments" "$INPUT_DIR/Vocals" "$INPUT_DIR/stems"
-
-    # 3. Pick the source track file
-    local SELECTED_FILE=$(pick_file "Select audio track to split:" "mp3,wav,aiff,flac")
-    [[ -z "$SELECTED_FILE" ]] && return 1
-
-    local EXT="${SELECTED_FILE##*.}"
-    local BASE_NAME=$(basename "$SELECTED_FILE")
-    local TRACK_NAME="${BASE_NAME%.*}"
-    
-    # Target absolute path on your Mac and relative path for JSON storage
-    local TARGET_MAIN_AUDIO="$INPUT_DIR/Mixed_Audio/$BASE_NAME"
-    local REL_MAIN_AUDIO="inputs/Mixed_Audio/$BASE_NAME"
-    
-    # 🚚 Copy the original mixed track over to the project directory
-    echo "🚚 Archiving mixed track to $REL_MAIN_AUDIO..."
-    cp "$SELECTED_FILE" "$TARGET_MAIN_AUDIO"
-    
-    # Update main_audio inside assets.json
-    jq --arg path "$REL_MAIN_AUDIO" '.inputs.main_audio = $path' "$PRESETS" > "$PRESETS.tmp" && mv "$PRESETS.tmp" "$PRESETS"
-    load_assets
-
-    echo "🎵 Demucs separating tracks for: $TRACK_NAME..."
-    
-    # 4. Process split execution
-    if [[ "$EXT" == "mp3" ]]; then
-        demucs --two-stems=vocals --mp3 -n htdemucs "$TARGET_MAIN_AUDIO" -o "$INPUT_DIR/stems"
-    else
-        demucs --two-stems=vocals -n htdemucs "$TARGET_MAIN_AUDIO" -o "$INPUT_DIR/stems"
-    fi
-    
-    # 5. Target demucs output paths
-    local DEMUCS_OUTPUT_DIR="$INPUT_DIR/stems/htdemucs/$TRACK_NAME"
+    # Locate generated stems inside intermediate directory layers
+    local DEMUCS_OUTPUT_DIR=$(find "$INPUT_DIR/stems/htdemucs" -maxdepth 1 -type d ! -path "$INPUT_DIR/stems/htdemucs" | head -n 1)
     local FOUND_VOCALS=$(find "$DEMUCS_OUTPUT_DIR" -name "vocals.$EXT" | head -n 1)
     local FOUND_INST=$(find "$DEMUCS_OUTPUT_DIR" -name "no_vocals.$EXT" | head -n 1)
     
     if [[ -n "$FOUND_VOCALS" && -n "$FOUND_INST" ]]; then
-        local FINAL_VOCALS_PATH="$INPUT_DIR/Vocals/${TRACK_NAME}_vocals.$EXT"
-        local FINAL_INST_PATH="$INPUT_DIR/Instruments/${TRACK_NAME}_instruments.$EXT"
+        local FINAL_VOCALS_PATH="$INPUT_DIR/vocals/${TRACK_NAME}_vocals.$EXT"
+        local FINAL_INST_PATH="$INPUT_DIR/instruments/${TRACK_NAME}_instruments.$EXT"
         
-        # Move into designated tree directories
         mv "$FOUND_VOCALS" "$FINAL_VOCALS_PATH"
         mv "$FOUND_INST" "$FINAL_INST_PATH"
+        rm -rf "$INPUT_DIR/stems" # Clean up temporary workspace noise
         
-        # Clean workspace
-        rm -rf "$INPUT_DIR/stems"
+        local REL_VOCALS="inputs/vocals/${TRACK_NAME}_vocals.$EXT"
+        local REL_INST="inputs/instruments/${TRACK_NAME}_instruments.$EXT"
         
-        # Relative paths for JSON tracking
-        local REL_VOCALS="inputs/Vocals/${TRACK_NAME}_vocals.$EXT"
-        local REL_INST="inputs/Instruments/${TRACK_NAME}_instruments.$EXT"
-        
-        # 6. Commit absolute paths back down into assets.json
+        # Save structural registration mappings seamlessly back to assets database keys
+        local temp_json=$(mktemp)
         jq --arg i "$REL_INST" --arg v "$REL_VOCALS" \
            '.inputs.instruments_only = $i | .inputs.vocals_only = $v' \
-           "$PRESETS" > "$PRESETS.tmp" && mv "$PRESETS.tmp" "$PRESETS"
-        
-        load_assets
-        echo "✅ Option 1 Complete: Stems saved and registered to assets.json."
+           "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
+           
+        echo "✅ AI Stem Separation successful!"
+        echo "📝 Registered Instruments Stem: $REL_INST"
+        echo "📝 Registered Vocals Stem: $REL_VOCALS"
     else
-        echo "❌ Error: Could not locate extracted stems."
+        echo "❌ Error: Demucs finished but script could not relocate output audio stems."
+        return 1
     fi
 }
