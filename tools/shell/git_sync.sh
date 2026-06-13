@@ -1,59 +1,49 @@
 #!/bin/bash
-# Library: tools/shell/git_sync.sh
+# ==============================================================================
+# ⚠️ WARNING: NEVER DELETE OR MODIFY THIS SUMMARY BLOCK. ALL DIRECTIONS MUST BE FOLLOWED.
+# ⚠️ DIRECTIVE: FOLLOW THE .gitignore CONFIGURATION WITH ABSOLUTE FIDELITY.
+# ==============================================================================
+# 🎵 myKaraoke Project Toolchain — Git Sync Engine Library
+# Script: tools/shell/git_sync.sh
+# Purpose: Clean text-only code sync respecting workspace root .gitignore rules.
+# Guardrails: Must stay under 50 lines. No force staging flags (-f) allowed.
+# ==============================================================================
 
 git_sync() {
-    # Define clean, local environment contexts independent of the master dashboard state
-    local PROJECT_ROOT="/Users/jim/myKaraoke"
-    
     echo "📦 Initializing automated Git synchronization..."
-    echo "📁 Target Project Canvas: $PROJECT_ROOT"
-    echo ""
 
-    # Navigate to your project directory
-    cd "$PROJECT_ROOT" || {
-        echo "❌ Error: Could not access project root folder path."
-        return 1
-    }
-
-    # 1. Sanity Check: Ensure this is an active Git repository tracker
+    # 1. Verify repo presence natively before attempting changes
     if [ ! -d ".git" ]; then
-        echo "❌ Error: This folder is not initialized as a Git repository."
-        echo "   Please run 'git init' and set up your remote origin branch first!"
+        echo "❌ Error: Working directory is not a tracked Git repository tracker."
         return 1
     fi
 
-    # 2. Check current status variations
-    echo "🔍 Scanning workspace for timeline updates or file mutations..."
+    # 2. Show clear short status of text and script updates detected
+    echo -e "\n🔍 Workspace Changes Detected:"
     git status -s
 
     echo ""
-    read -p "Do you want to stage these mutations and push updates to GitHub? (y/N): " confirm
+    read -p "🚀 Do you want to push these text assets to GitHub? (y/N): " confirm
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        echo "⏭️  Sync sequence aborted. Returning to master menu."
+        echo "⏭️  Sync sequence aborted. Returning to menu."
         return 0
     fi
 
-    echo ""
-    echo "🚀 Staging all project canvas changes..."
+    # 3. Stage changes naturally. Standard '.' relies implicitly on .gitignore
     git add .
 
-    # Generate a clean runtime timestamp descriptor string (e.g., "2026-06-09 14:30")
+    # Generate a lightweight timestamp descriptor log
     local CURRENT_TIME=$(date "+%Y-%m-%d %H:%M")
-    local COMMIT_MSG="Automated myKaraoke pipeline synchronization - $CURRENT_TIME"
+    git commit -m "Automated myKaraoke pipeline synchronization - $CURRENT_TIME"
 
-    echo "📝 Committing alterations with safe tracking timestamp..."
-    git commit -m "$COMMIT_MSG"
-
-    # 3. Securely push updates to your main cloud tracking branch
-    echo "📡 Deploying code blocks to remote GitHub repository branch [main]..."
+    # 4. Push updates upstream safely
+    echo -e "\n📡 Deploying code blocks to remote GitHub [main]..."
     git push origin main
 
     if [ $? -eq 0 ]; then
-        echo ""
-        echo "✅ Success! Project canvas state is perfectly synced with cloud servers."
+        echo -e "\n✅ Success! Code assets synced cleanly with GitHub servers."
     else
-        echo ""
-        echo "❌ Error: Git push pipeline encountered a network or authentication block."
+        echo -e "\n❌ Error: Git push transaction failed."
         return 1
     fi
 }

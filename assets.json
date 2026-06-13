@@ -2,20 +2,40 @@
   "inputs": {
     "song_title": "Dĩ Vãng Nhạt Nhòa",
     "song_author": "Dominic Chow",
-    "mixed_audio": "inputs/Mixed_Audio/Di-Vang-Nhat-Nhoa-Male_mixed.mp3",
-    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male_Instruments.mp3",
-    "vocals_only": "inputs/Vocals/Di-Vang-Nhat-Nhoa-Male_Vocals.mp3",
-    "source_midi": "inputs/midi/Di-Vang-Nhat-Nhoa-Male.mid",
+    "mixed_audio": "inputs/Mixed_Audio/Di-Vang-Nhat-Nhoa-Male-Mixed-Flex.mp3",
+    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male-Instruments-Flex.mp3",
+    "vocals_only": "inputs/Vocals/Di-Vang-Nhat-Nhoa-Male-Vocals-Flex.mp3",
+    "source_midi": "inputs/midi/Di-Vang-Nhat-Nhoa-Male_synthv.mid",
     "midi_bpm": "70.0",
     "midi_key": "G-Minor",
     "seconds_per_beat": "0.8571",
     "vocalist_gender": "Male",
+    "subtitles_txt": "inputs/subtitles/Di-Vang-Nhat-Nhoa-Male.txt",
     "subtitles_srt": "inputs/subtitles/Di-Vang-Nhat-Nhoa-Male.srt",
     "subtitles_ass": "inputs/subtitles/Di-Vang-Nhat-Nhoa-Male.ass",
     "background": "inputs/Background/Yosemeti_optimized_background.mp4"
   },
+  "audio": {
+    "mixed_audio": "inputs/Mixed_Audio/Di-Vang-Nhat-Nhoa-Male-Mixed-Flex.mp3",
+    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male-Instruments-Flex.mp3",
+    "vocals_only": "inputs/Vocals/Di-Vang-Nhat-Nhoa-Male-Vocals-Flex.mp3"
+  },
+  "styling": {
+    "Gender_Mode": "Male",
+    "Font_Name": "Arial",
+    "Palettes": {
+      "Male": {
+        "Primary": "&H00FFFFFF&",
+        "Secondary": "&H00FF0000&"
+      },
+      "Female": {
+        "Primary": "&H00FFFFFF&",
+        "Secondary": "&H000000FF&"
+      }
+    }
+  },
   "outputs": {
-    "karaoke_video": "outputs/karaoke/Di-Vang-Nhat-Nhoa-Male_karaoke.mp4",
+    "karaoke_video": "outputs/karaoke/Di-Vang-Nhat-Nhoa-Male-Instruments-Flex_karaoke.mp4",
     "lyrics_video": "outputs/lyrics/Di-Vang-Nhat-Nhoa-Male_lyrics.mp4"
   },
   "dashboard_routing": {
@@ -23,79 +43,92 @@
       "category": "🌐 Preview Control Room",
       "label": "Initialize Project Session & Launch Browser Preview Room",
       "script": "tools/shell/view_dashboard.sh",
-      "function": "open_preview_room"
+      "function": "open_preview_room",
+      "note": "Requires 1 script to run: view_dashboard.sh"
     },
     "2": {
       "category": "🎼 Audio Stem Engineering",
       "label": "Process & Populate Stems (Logic Pro Import OR AI Demucs Split)",
       "script": "tools/shell/ingest_stems_engine.sh",
-      "function": "ingest_stems_engine"
+      "function": "ingest_stems_engine",
+      "note": "Requires 1 script to run: ingest_stems_engine.sh"
     },
     "3": {
       "category": "🎼 Audio Stem Engineering",
       "label": "Optimize Track Headroom Peaks (Normalize Gain DB)",
       "script": "tools/shell/optimized_volume.sh",
-      "function": "optimize_volume"
+      "function": "optimize_volume",
+      "note": "Requires 1 script to run: optimized_volume.sh"
     },
     "4": {
       "category": "📝 Subtitle Tracking Alignment",
       "label": "Deploy Whisper AI Transcription (Auto-Caption Vocals)",
       "script": "tools/shell/auto_caption_whisper.sh",
-      "function": "auto_caption_whisper"
+      "function": "auto_caption_whisper",
+      "note": "Requires 1 script to run: auto_caption_whisper.sh"
     },
     "5": {
       "category": "📝 Subtitle Tracking Alignment",
-      "label": "Compile Subtitles From Synth V MIDI Track (Dual Export)",
+      "label": "Compile Subtitles via Synth V MIDI (Runs: tools/python/midi_to_ass.py)",
       "script": "tools/shell/compile_synthv.sh",
-      "function": "compile_midi_subtitles"
+      "function": "compile_midi_subtitles",
+      "note": "Requires 2 scripts to run: compile_synthv.sh and midi_to_ass.py"
     },
     "6": {
       "category": "📝 Subtitle Tracking Alignment",
       "label": "Import External Production .ASS Subtitle File Layouts",
       "script": "tools/shell/import_production_ass.sh",
-      "function": "import_ass_subtitles"
+      "function": "import_ass_subtitles",
+      "note": "Requires 1 script to run: import_production_ass.sh"
     },
     "7": {
       "category": "🎬 Video Rendering Suite",
       "label": "Strip Audio Layer Out From Background Reference Videos",
       "script": "tools/shell/strip_audio.sh",
-      "function": "strip_audio"
+      "function": "strip_audio",
+      "note": "Requires 1 script to run: strip_audio.sh"
     },
     "8": {
       "category": "🎬 Video Rendering Suite",
       "label": "Import & Optimize Background Scenery Videos",
       "script": "tools/shell/import_background.sh",
-      "function": "import_background"
+      "function": "import_background",
+      "note": "Requires 1 script to run: import_background.sh"
     },
     "9": {
       "category": "🎬 Video Rendering Suite",
       "label": "Generate High-Res Final Karaoke Video",
       "script": "tools/shell/create_video.sh",
-      "function": "create_karaoke_video"
+      "function": "create_karaoke_video",
+      "note": "Requires 1 script to run: create_video.sh"
     },
     "10": {
       "category": "🎬 Video Rendering Suite",
       "label": "Generate Alternative Full-Mix Lyrics Presentation Video",
       "script": "tools/shell/create_lyrics_video.sh",
-      "function": "create_lyrics_video"
+      "function": "create_lyrics_video",
+      "note": "Requires 1 script to run: create_lyrics_video.sh"
     },
     "11": {
       "category": "⚙️  Workspace Management",
       "label": "Purge Local Render Output Storage Files",
       "script": "tools/shell/purge_outputs.sh",
-      "function": "purge_outputs"
+      "function": "purge_outputs",
+      "note": "Requires 1 script to run: purge_outputs.sh"
     },
     "12": {
       "category": "⚙️  Workspace Management",
       "label": "Synchronize Project Canvas State Safely to GitHub",
       "script": "tools/shell/git_sync.sh",
-      "function": "git_sync"
+      "function": "git_sync",
+      "note": "Requires 1 script to run: git_sync.sh"
     },
     "13": {
       "category": "⚙️  Workspace Management",
       "label": "Validate Project Assets and Naming Consistency",
       "script": "tools/shell/validate_assets.sh",
-      "function": "validate_project_assets"
+      "function": "validate_project_assets",
+      "note": "Requires 1 script to run: validate_assets.sh"
     }
   }
 }

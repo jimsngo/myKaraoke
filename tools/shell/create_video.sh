@@ -11,42 +11,18 @@
 create_karaoke_video() {
     local PROJECT_ROOT="/Users/jim/myKaraoke"
     local PRESETS="$PROJECT_ROOT/assets.json"
-    local JSON_GUARD="$PROJECT_ROOT/tools/shell/validate_json.sh"
-
-    # 🛠️ SAFEGUARD CHECK: Mandating alignment over all core production targets
-    local REQUIRED_ASSET_KEYS=(
-        "mixed_audio"
-        "instruments_only"
-        "subtitles_ass"
-        "background"
-    )
-
-    if [[ -f "$JSON_GUARD" ]]; then
-        source "$JSON_GUARD"
-        validate_required_keys "$(basename "$0")" "${REQUIRED_ASSET_KEYS[@]}"
-    else
-        echo "⚠️  Warning: Central validate_json.sh guard missing. Proceeding without safety check..."
-    fi
 
     # --- Active Video Render Engine Runs Safely Below ---
-    echo "⏳ Loading production assets from database..."
+    echo "⏳ Loading production assets from dashboard environment..."
     
-    # FIXED: Re-aligned keys to completely remove main_audio dependency
-    local REL_MAIN=$(jq -r '.inputs.mixed_audio // ""' "$PRESETS")
-    local REL_INST=$(jq -r '.inputs.instruments_only // ""' "$PRESETS")
-    local REL_SUB=$(jq -r '.inputs.subtitles_ass // ""' "$PRESETS") 
-    local REL_BG=$(jq -r '.inputs.background // ""' "$PRESETS")
+    # Direct mapping to global variables exported by Karaoke_Dashboard.sh
+    local ABS_BG="$PROJECT_ROOT/$BACKGROUND_VID"
+    local ABS_INST="$PROJECT_ROOT/$INSTRUMENTS_ONLY"
+    local ABS_SUB="$PROJECT_ROOT/$SUBTITLES_ASS"
 
-    local ABS_MAIN="$PROJECT_ROOT/$REL_MAIN"
-    local ABS_INST="$PROJECT_ROOT/$REL_INST"
-    local ABS_SUB="$PROJECT_ROOT/$REL_SUB"
-    local ABS_BG="$PROJECT_ROOT/$REL_BG"
-
+    # Extract clean song name from the instrumental path
     local SONG_NAME="karaoke_output"
-    if [[ -n "$REL_MAIN" ]]; then
-        local BASE_NAME=$(basename "$ABS_MAIN")
-        SONG_NAME=$(echo "${BASE_NAME%.*}" | sed -E 's/_(instruments|vocals|mixed)?(_optimized)?$//')
-    elif [[ -n "$REL_INST" ]]; then
+    if [[ -n "$INSTRUMENTS_ONLY" ]]; then
         local BASE_NAME=$(basename "$ABS_INST")
         SONG_NAME=$(echo "${BASE_NAME%.*}" | sed -E 's/_(instruments|vocals|mixed)?(_optimized)?$//')
     fi
@@ -56,13 +32,16 @@ create_karaoke_video() {
     local ABS_OUTPUT_FILE="$TARGET_DIR/${SONG_NAME}_karaoke.mp4"
     local REL_OUTPUT_FILE="outputs/karaoke/${SONG_NAME}_karaoke.mp4"
 
+    # Verify files exist on disk before rendering
     if [[ ! -f "$ABS_BG" ]] || [[ ! -f "$ABS_INST" ]] || [[ ! -f "$ABS_SUB" ]]; then
         echo "❌ Error: One or more rendering dependencies are missing from disk."
+        echo "   Ensure Background, Instruments, and Subtitles are properly set."
         return 1
     fi
 
+    # Calculate track length for the video cutoff boundary
     local DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$ABS_INST")
-    local VF_FILTER="subtitles='${ABS_SUB//\'/\\\'}'"
+    local vf_filter="subtitles='${ABS_SUB//\'/\\\'}'"
 
     echo ""
     echo "🎬 Rendering Production-Grade Karaoke Video..."
@@ -71,6 +50,7 @@ create_karaoke_video() {
     echo "🎥 Deploying ffmpeg processing stream..."
     echo ""
 
+    # Execute multiplex encode stream
     ffmpeg -y -stream_loop -1 -i "$ABS_BG" -i "$ABS_INST" \
            -vf "$vf_filter" \
            -map 0:v:0 -map 1:a:0 \
@@ -81,6 +61,7 @@ create_karaoke_video() {
     if [[ $? -eq 0 && -f "$ABS_OUTPUT_FILE" ]]; then
         echo ""
         echo "✅ Video rendering complete!"
+        # Update the master assets map with the final location
         local temp_json=$(mktemp)
         jq --arg p "$REL_OUTPUT_FILE" '.outputs.karaoke_video = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
         echo "📂 Saved to: $REL_OUTPUT_FILE"
