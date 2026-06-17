@@ -3,22 +3,21 @@
 # 🎵 myKaraoke Project Toolchain — Option 9 Module
 # Script: tools/shell/create_video.sh
 # Purpose: Renders production karaoke visuals using instrumentals and stylized ASS.
-#
-# Schema Dependency Guards:
-#   👉 Required .inputs Keys: [ mixed_audio, instruments_only, subtitles_ass, background ]
 # ==============================================================================
 
 create_karaoke_video() {
     local PROJECT_ROOT="/Users/jim/myKaraoke"
     local PRESETS="$PROJECT_ROOT/assets.json"
 
-    # --- Active Video Render Engine Runs Safely Below ---
     echo "⏳ Loading production assets from dashboard environment..."
     
-    # Direct mapping to global variables exported by Karaoke_Dashboard.sh
+    # Direct mapping for media assets
     local ABS_BG="$PROJECT_ROOT/$BACKGROUND_VID"
     local ABS_INST="$PROJECT_ROOT/$INSTRUMENTS_ONLY"
-    local ABS_SUB="$PROJECT_ROOT/$SUBTITLES_ASS"
+    
+    # 🎯 TARGET FIX: Explicitly parse the master Aegisub file key from blueprints
+    local PROD_SUB_KEY=$(jq -r '.inputs.subtitles_production_ass // .inputs.subtitles_ass' "$PRESETS")
+    local ABS_SUB="$PROJECT_ROOT/$PROD_SUB_KEY"
 
     # Extract clean song name from the instrumental path
     local SONG_NAME="karaoke_output"
@@ -32,25 +31,24 @@ create_karaoke_video() {
     local ABS_OUTPUT_FILE="$TARGET_DIR/${SONG_NAME}_karaoke.mp4"
     local REL_OUTPUT_FILE="outputs/karaoke/${SONG_NAME}_karaoke.mp4"
 
-    # Verify files exist on disk before rendering
-    if [[ ! -f "$ABS_BG" ]] || [[ ! -f "$ABS_INST" ]] || [[ ! -f "$ABS_SUB" ]]; then
-        echo "❌ Error: One or more rendering dependencies are missing from disk."
-        echo "   Ensure Background, Instruments, and Subtitles are properly set."
+    # Dependency check validation
+    if [[ ! -f "$ABS_BG" || ! -f "$ABS_INST" || ! -f "$ABS_SUB" ]]; then
+        echo "❌ ERROR: Cannot proceed with multiplexing."
+        echo "   Missing: $( [[ ! -f "$ABS_SUB" ]] && echo "[Master Subtitles: $PROD_SUB_KEY] " )$( [[ ! -f "$ABS_BG" ]] && echo "[Background] " )$( [[ ! -f "$ABS_INST" ]] && echo "[Instrumental]" )"
         return 1
     fi
 
-    # Calculate track length for the video cutoff boundary
     local DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$ABS_INST")
     local vf_filter="subtitles='${ABS_SUB//\'/\\\'}'"
 
     echo ""
     echo "🎬 Rendering Production-Grade Karaoke Video..."
     echo "🎵 Song Identification: $SONG_NAME"
+    echo "📝 Using Subtitle Track: $(basename "$ABS_SUB")"
     echo "⏱️  Timeline Target:     $DURATION seconds"
     echo "🎥 Deploying ffmpeg processing stream..."
     echo ""
 
-    # Execute multiplex encode stream
     ffmpeg -y -stream_loop -1 -i "$ABS_BG" -i "$ABS_INST" \
            -vf "$vf_filter" \
            -map 0:v:0 -map 1:a:0 \
@@ -61,17 +59,11 @@ create_karaoke_video() {
     if [[ $? -eq 0 && -f "$ABS_OUTPUT_FILE" ]]; then
         echo ""
         echo "✅ Video rendering complete!"
-        # Update the master assets map with the final location
         local temp_json=$(mktemp)
         jq --arg p "$REL_OUTPUT_FILE" '.outputs.karaoke_video = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
-        echo "📂 Saved to: $REL_OUTPUT_FILE"
-        return 0
+        echo "💾 Asset map updated with video release location."
     else
-        echo "❌ Error: FFmpeg multiplexing stream encountered an export failure."
+        echo "❌ ERROR: ffmpeg rendering processing pipeline failed."
         return 1
     fi
 }
-
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    create_karaoke_video
-fi
