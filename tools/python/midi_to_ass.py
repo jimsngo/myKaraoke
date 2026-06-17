@@ -23,11 +23,13 @@ try:
     SONG_AUTHOR = config["inputs"].get("song_author", "Unknown Author")
     GENDER_SELECTION = config["inputs"].get("vocalist_gender", "Male")
     raw_bpm = config["inputs"].get("midi_bpm", "70.0")
+    MIN_WORD_DURATION = float(config.get("settings", {}).get("min_word_duration", 0.10))
 except Exception as e:
     SONG_TITLE = os.environ.get("SONG_TITLE", "Unknown Title")
     SONG_AUTHOR = os.environ.get("SONG_AUTHOR", "Unknown Author")
     GENDER_SELECTION = "Male"
     raw_bpm = os.environ.get("MIDI_BPM", "70.0")
+    MIN_WORD_DURATION = 0.10
 
 try: BPM = float(raw_bpm)
 except ValueError: BPM = 70.0
@@ -183,7 +185,7 @@ def compile_ass_file(raw_tokens, out_path):
         desired_curr_start = curr["true_start"] - LEAD_IN_SECONDS
         
         if desired_curr_start < prev["screen_end"]:
-            min_start = prev["tokens"][-1]["start_time"] + 0.12  
+            min_start = prev["tokens"][-1]["start_time"] + MIN_WORD_DURATION + 0.02  
             max_start = curr["true_start"] - 0.04               
             curr["screen_start"] = min(max_start, max(min_start, desired_curr_start))
             prev["screen_end"] = curr["screen_start"] - 0.02
@@ -199,17 +201,25 @@ def compile_ass_file(raw_tokens, out_path):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write("[Script Info]\nScriptType: v4.00+\nPlayResX: 1280\nPlayResY: 720\n\n")
         f.write("[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-        
-        # 🎯 FIX: Updated Title colors from COLOR_WHITE to use GENDER_COLOR for fill channels
         f.write(f"Style: Title,Arial,80,{GENDER_COLOR},{GENDER_COLOR},{COLOR_BLACK},{COLOR_BLACK},1,0,0,0,100,100,0,0,1,3,2,5,10,10,10,1\n")
         f.write(f"Style: Lyrics,Arial,60,{COLOR_WHITE},{GENDER_COLOR},{COLOR_BLACK},{COLOR_BLACK},1,0,0,0,100,100,0,0,1,3,1,2,10,10,25,1\n\n")
         
         f.write("[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
         
+        # Auto-Resizing Title Card Logic
+        final_title_size = 80
+        final_author_size = 50
+        if len(SONG_TITLE) >= 18:
+            final_title_size = max(40, int(80 * (16 / len(SONG_TITLE))))
+        if len(SONG_AUTHOR) >= 28:
+            final_author_size = max(28, int(50 * (24 / len(SONG_AUTHOR))))
+
         intro_end = INTRO_DURATION / 1000.0
-        f.write(f"Dialogue: 0,0:00:00.00,{format_to_ass_time(intro_end)},Title,,0,0,0,,{SONG_TITLE}\\N{{\\fs50}}{SONG_AUTHOR}\n")
+        f.write(f"Dialogue: 0,0:00:00.00,{format_to_ass_time(intro_end)},Title,,0,0,0,,{{\\fs{final_title_size}}}{SONG_TITLE}\\N{{\\fs{final_author_size}}}{SONG_AUTHOR}\n")
         
-        for card in cards:
+        # 🎯 TARGET REMOVAL: Phase 1 Intro Check has been completely removed. Title card owns the space.
+
+        for idx, card in enumerate(cards):
             actual_lead_in = card['true_start'] - card['screen_start']
             lead_in_cs = int(round(actual_lead_in * 100))
             
@@ -218,19 +228,19 @@ def compile_ass_file(raw_tokens, out_path):
                 payload_string += f"{{\\k{lead_in_cs}}}\\h"
             
             total_words = len(card['tokens'])
-            for idx, token in enumerate(card['tokens']):
+            for w_idx, token in enumerate(card['tokens']):
                 duration_cs = int(round((token['end_time'] - token['start_time']) * 100))
                 
-                if idx == 0:
+                if w_idx == 0:
                     clean_first_word = token['text'].lstrip()
                     payload_string += f"{{\\k{duration_cs}}}{clean_first_word}"
-                elif idx > 0 and card['tokens'][idx - 1]['line_break']:
+                elif w_idx > 0 and card['tokens'][w_idx - 1]['line_break']:
                     payload_string += f"\\N{{\\k{duration_cs}}}{token['text'].strip()}"
                 else:
                     payload_string += f"{{\\k{duration_cs}}}{token['text']}"
                 
-                if idx < total_words - 1:
-                    next_tok = card['tokens'][idx + 1]
+                if w_idx < total_words - 1:
+                    next_tok = card['tokens'][w_idx + 1]
                     gap = next_tok['start_time'] - token['end_time']
                     if gap > 0.005:
                         gap_cs = int(round(gap * 100))
@@ -243,7 +253,19 @@ def compile_ass_file(raw_tokens, out_path):
                 payload_string += f"{{\\k{trailing_cs}}}\\h"
 
             f.write(f"Dialogue: 0,{format_to_ass_time(card['screen_start'])},{format_to_ass_time(card['screen_end'])},Lyrics,,0,0,0,,{payload_string.strip()}\n")
-    print(f"✅ Generated layout-hardened ASS file for [{GENDER_SELECTION} Mode]: {out_path}")
+            
+            # 🎯 TARGET UPDATE: Phase 2 Mid-Song Interlude Check with clean 1-bar margins
+            if idx < len(cards) - 1:
+                next_card = cards[idx + 1]
+                musical_gap = next_card["true_start"] - card["true_end"]
+                if musical_gap >= 4.0 * BAR_DURATION:
+                    # Apply a 1-bar margin padding immediately after the vocal ends and before the next starts
+                    int_start = card["true_end"] + BAR_DURATION
+                    int_end = next_card["true_start"] - BAR_DURATION
+                    if int_end > int_start + 1.0:
+                        f.write(f"Dialogue: 0,{format_to_ass_time(int_start)},{format_to_ass_time(int_end)},Title,,0,0,0,,[Interlude]\n")
+                        
+    print(f"✅ Generated ASS file with 1-Bar Margin [Interlude] Engine active: {out_path}")
 
 if __name__ == "__main__":
     if not MIDI_ENV:

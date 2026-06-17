@@ -3,7 +3,7 @@
     "song_title": "Dĩ Vãng Nhạt Nhòa",
     "song_author": "Dominic Chow",
     "mixed_audio": "inputs/Mixed_Audio/Di-Vang-Nhat-Nhoa-Male-Mixed-Flex.mp3",
-    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male-Instruments-Flex.mp3",
+    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male_instruments_melody_Flex.mp3",
     "vocals_only": "inputs/Vocals/Di-Vang-Nhat-Nhoa-Male-Vocals-Flex.mp3",
     "source_midi": "inputs/midi/Di-Vang-Nhat-Nhoa-Male.mid",
     "midi_bpm": "70.0",
@@ -18,11 +18,12 @@
   },
   "settings": {
     "lead_in_seconds": 0.8,
-    "min_break_gap": 1.0
+    "min_break_gap": 1.0,
+    "min_word_duration": 0.5
   },
   "audio": {
     "mixed_audio": "inputs/Mixed_Audio/Di-Vang-Nhat-Nhoa-Male-Mixed-Flex.mp3",
-    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male-Instruments-Flex.mp3",
+    "instruments_only": "inputs/Instruments/Di-Vang-Nhat-Nhoa-Male_instruments_melody_Flex.mp3",
     "vocals_only": "inputs/Vocals/Di-Vang-Nhat-Nhoa-Male-Vocals-Flex.mp3"
   },
   "styling": {
@@ -40,7 +41,7 @@
     }
   },
   "outputs": {
-    "karaoke_video": "outputs/karaoke/Di-Vang-Nhat-Nhoa-Male-Instruments-Flex_karaoke.mp4",
+    "karaoke_video": "outputs/karaoke/Di-Vang-Nhat-Nhoa-Male_instruments_melody_Flex_karaoke.mp4",
     "lyrics_video": "outputs/lyrics/Di-Vang-Nhat-Nhoa-Male_lyrics.mp4"
   },
   "dashboard_routing": {

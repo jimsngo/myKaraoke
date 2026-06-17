@@ -39,15 +39,15 @@ display_menu() {
 
     echo -e "\033[1;33m📝 Subtitle Tracking Alignment:\033[0m"
     echo "  4) Deploy Whisper AI Transcription (Auto-Caption Vocals)"
-    echo "  5) Compile Subtitles From Synth V MIDI Track (Dual Export)"
+    echo "  5) Compile Subtitles ASS From Logic's MIDI Track"
     echo "  6) Import External Production .ASS Subtitle File Layouts"
     echo ""
 
     echo -e "\033[1;33m🎬 Video Rendering Suite:\033[0m"
     echo "  7) Strip Audio Layer Out From Background Reference Videos"
     echo "  8) Import & Optimize Background Scenery Videos"
-    echo "  9) Generate High-Res Final Karaoke Video"
-    echo " 10) Generate Alternative Full-Mix Lyrics Presentation Video"
+    echo "  9) Generate Karaoke Video from instrumental_only and Subtitles .ASS"
+    echo " 10) Generate Lyrics Video from mixed_audio and Subtitles .ASS"
     echo ""
 
     echo -e "\033[1;33m⚙️  Workspace Management:\033[0m"
