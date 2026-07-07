@@ -2,7 +2,7 @@
 # Library: tools/shell/import_logic_masters.sh
 
 import_logic_masters() {
-    local PROJECT_ROOT="/Users/jim/myKaraoke"
+    local PROJECT_ROOT="$PROJECT_DIR"
     local PRESETS="$PROJECT_ROOT/assets.json"
 
     # Verify a session has been instantiated

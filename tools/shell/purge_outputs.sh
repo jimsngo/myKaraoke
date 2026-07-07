@@ -3,7 +3,7 @@
 
 purge_outputs() {
     # Define clean, local environment contexts independent of the master dashboard state
-    local PROJECT_ROOT="/Users/jim/myKaraoke"
+    local PROJECT_ROOT="$PROJECT_DIR"
     local TARGET_KARAOKE="$PROJECT_ROOT/outputs/karaoke"
     local TARGET_LYRICS="$PROJECT_ROOT/outputs/lyrics"
 

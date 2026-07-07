@@ -5,7 +5,7 @@ display_menu() {
     clear
     
     # Establish local path references for real-time asset checks
-    local PRESETS_FILE="/Users/jim/myKaraoke/assets.json"
+    local PRESETS_FILE="$PROJECT_DIR/assets.json"
     local CURRENT_TRACK="No Active Song Session"
     
     if [[ -f "$PRESETS_FILE" ]]; then
@@ -56,4 +56,15 @@ display_menu() {
     echo " 13) Validate Project Assets and Naming Consistency"
     echo ""
     echo -e "\033[1;36m=========================================================\033[0m"
+}
+# Utility to open a macOS native file picker dialog
+pick_file() {
+    local prompt_text="${1:-Select a file}"
+    # Use AppleScript to open a Finder dialog and return the POSIX path
+    local file_path=$(osascript -e "POSIX path of (choose file with prompt \"$prompt_text\")" 2>/dev/null)
+    
+    if [[ -z "$file_path" ]]; then
+        return 1 # User cancelled
+    fi
+    echo "$file_path"
 }

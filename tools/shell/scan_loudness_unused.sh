@@ -7,6 +7,6 @@ scan_loudness() {
     fi
 
     echo "🔍 Scanning: $(basename "$FILE")..."
-    ffmpeg -i "$FILE" -af loudnorm=I=-16:print_format=summary -f null -
+    ffmpeg -nostdin -i "$FILE" -af loudnorm=I=-16:print_format=summary -f null -
     read -p "Press Enter to return to menu..."
 }

@@ -2,7 +2,7 @@
 # Central Guard: tools/shell/validate_json.sh
 # Purpose: Prevent execution if script references an invalid/missing assets.json key
 
-PROJECT_DIR="/Users/jim/myKaraoke"
+PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
 ASSETS_FILE="$PROJECT_DIR/assets.json"
 
 # Terminal Colors

@@ -3,7 +3,7 @@
 
 ingest_stems_engine() {
 # --- Local Environment Variables Block ---
-    local PROJECT_DIR="/Users/jim/myKaraoke"
+    local PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
     local INPUT_DIR="$PROJECT_DIR/inputs"
     local PRESETS="$PROJECT_DIR/assets.json"
     local JSON_GUARD="$PROJECT_DIR/tools/shell/validate_json.sh"

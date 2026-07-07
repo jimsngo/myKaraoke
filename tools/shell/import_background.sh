@@ -1,21 +1,18 @@
 #!/bin/bash
 # ==============================================================================
-# 🎵 myKaraoke Project Toolchain — Option 8 Module
+# 🎵 myKaraoke Project Toolchain — Option 8 Module (Unified Output Architecture)
 # Script: tools/shell/import_background.sh
-# Purpose: Pre-renders and loops background video assets to match audio timelines.
-#
-# Schema Dependency Guards:
-#   👉 Required .inputs Keys: [ mixed_audio ]
+# Purpose: Pre-renders/loops background video assets to match audio timelines,
+#          routing output files directly to the centralized outputs hierarchy.
 # ==============================================================================
 
 import_background() {
     # Define local path references independent of external shell scopes
-    local PROJECT_DIR="/Users/jim/myKaraoke"
-    local INPUT_DIR="$PROJECT_DIR/inputs"
+    local PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
     local PRESETS="$PROJECT_DIR/assets.json"
     local JSON_GUARD="$PROJECT_DIR/tools/shell/validate_json.sh"
 
-    # 🛠️ SAFEGUARD CHECK: Enforce variable names are aligned before timeline calculations
+    # 🛠️ SAFEGUARD CHECK
     local REQUIRED_ASSET_KEYS=(
         "mixed_audio"
     )
@@ -27,8 +24,7 @@ import_background() {
         echo "⚠️  Warning: Central validate_json.sh guard missing. Proceeding without safety check..."
     fi
 
-    # --- Active Processing Engine Runs Safely Below ---
-    # FIXED: Re-aligned to fetch mixed_audio to stay completely in sync with Option 1
+    # Fetch configuration parameters from project file
     local REL_AUDIO=$(jq -r '.inputs.mixed_audio // ""' "$PRESETS")
 
     if [[ -z "$REL_AUDIO" || ! -f "$PROJECT_DIR/$REL_AUDIO" ]]; then
@@ -44,14 +40,15 @@ import_background() {
     
     [[ -z "$FILE" ]] && { echo "⏭️ Selection canceled."; return 1; }
 
-    local BG_BASE=$(basename "$FILE")
-    local BG_NAME="${BG_BASE%.*}"
+    local RAW_TITLE=$(jq -r '.inputs.song_title // "project_output"' "$PRESETS")
+    local SONG_NAME=$(echo "$RAW_TITLE" | sed 's/[[:space:]]\+/_/g' | sed 's/_\+/_/g' | sed 's/^_//;s/_$//')
 
-    local TARGET_DIR="$INPUT_DIR/background"
+    # Points directly to primary capitalized outputs/Background hierarchy
+    local TARGET_DIR="$PROJECT_DIR/outputs/Background"
     mkdir -p "$TARGET_DIR"
     
-    local ABS_OUTPUT_PATH="$TARGET_DIR/${BG_NAME}_optimized_background.mp4"
-    local REL_OUTPUT_PATH="inputs/background/${BG_NAME}_optimized_background.mp4"
+    local ABS_OUTPUT_PATH="$TARGET_DIR/${SONG_NAME}_optimized_background.mp4"
+    local REL_OUTPUT_PATH="outputs/Background/${SONG_NAME}_optimized_background.mp4"
 
     echo "📁 Target Output: $REL_OUTPUT_PATH"
     echo ""
@@ -79,7 +76,7 @@ import_background() {
     echo "⚙️  Pre-rendering background loop to cover total duration (${AUDIO_LEN}s)..."
     echo "🎥 Processing via FFmpeg..."
     
-    ffmpeg -y -stream_loop -1 -i "$FILE" -t "$AUDIO_LEN" \
+    ffmpeg -nostdin -y -stream_loop -1 -i "$FILE" -t "$AUDIO_LEN" \
         $SCALE_FILTER \
         -c:v libx264 \
         -preset "$PRESET_PROFILE" \
@@ -97,8 +94,9 @@ import_background() {
 
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             local temp_json=$(mktemp)
-            jq --arg p "$REL_OUTPUT_PATH" '.inputs.background = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
-            echo "📝 Registered background loop mapping successfully!"
+            # TWIN INJECTION: Updates both input loop variable AND central output registry block
+            jq --arg p "$REL_OUTPUT_PATH" '.inputs.background = $p | .outputs.background_video = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
+            echo "📝 Registered background loop mappings successfully!"
         fi
         return 0
     else

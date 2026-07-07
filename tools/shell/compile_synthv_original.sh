@@ -10,7 +10,7 @@
 
 compile_midi_subtitles() {
     # --- Local Environment Variables Block ---
-    local PROJECT_DIR="/Users/jim/myKaraoke"
+    local PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
     local PRESETS="$PROJECT_DIR/assets.json"
     local MIDI_DIR="$PROJECT_DIR/inputs/midi"
     local SUB_DIR="$PROJECT_DIR/inputs/subtitles"

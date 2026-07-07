@@ -10,7 +10,7 @@
 
 strip_audio() {
     # Define local path references independent of external shell scopes
-    local PROJECT_DIR="/Users/jim/myKaraoke"
+    local PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
     local INPUT_DIR="$PROJECT_DIR/inputs"
     local PRESETS="$PROJECT_DIR/assets.json"
     local JSON_GUARD="$PROJECT_DIR/tools/shell/validate_json.sh"
@@ -72,7 +72,7 @@ strip_audio() {
 
     echo "✂️  Stripping audio from: $BASE_NAME..."
     
-    if ffmpeg -y -i "$INPUT_FILE" -an -c:v copy "$ABS_OUTPUT_PATH"; then
+    if ffmpeg -nostdin -y -nostdin -i "$INPUT_FILE" -an -c:v copy "$ABS_OUTPUT_PATH"; then
         echo "✅ Success! File saved to: $REL_OUTPUT_PATH"
 
         echo ""

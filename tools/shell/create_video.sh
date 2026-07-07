@@ -2,36 +2,41 @@
 # ==============================================================================
 # 🎵 myKaraoke Project Toolchain — Option 9 Module
 # Script: tools/shell/create_video.sh
-# Purpose: Renders production karaoke visuals using instrumentals and stylized ASS.
+# Purpose: Multiplexes subtitles and instrumental audio onto the background canvas.
 # ==============================================================================
 
 create_karaoke_video() {
-    local PROJECT_ROOT="/Users/jim/myKaraoke"
+    PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
+    local PROJECT_ROOT="$PROJECT_DIR"
     local PRESETS="$PROJECT_ROOT/assets.json"
 
-    echo "⏳ Loading production assets from dashboard environment..."
+    echo "⏳ Loading production assets from database registry..."
     
-    # Direct mapping for media assets
-    local ABS_BG="$PROJECT_ROOT/$BACKGROUND_VID"
-    local ABS_INST="$PROJECT_ROOT/$INSTRUMENTS_ONLY"
+    local LIVE_BG=$(jq -r '.inputs.background // ""' "$PRESETS")
+    local LIVE_INST=$(jq -r '.inputs.instruments_only // ""' "$PRESETS")
     
-    # 🎯 TARGET FIX: Explicitly parse the master Aegisub file key from blueprints
-    local PROD_SUB_KEY=$(jq -r '.inputs.subtitles_production_ass // .inputs.subtitles_ass' "$PRESETS")
-    local ABS_SUB="$PROJECT_ROOT/$PROD_SUB_KEY"
+    local ABS_BG
+    if [[ "$LIVE_BG" == /* ]]; then ABS_BG="$LIVE_BG"; else ABS_BG="$PROJECT_ROOT/$LIVE_BG"; fi
 
-    # Extract clean song name from the instrumental path
+    local ABS_INST
+    if [[ "$LIVE_INST" == /* ]]; then ABS_INST="$LIVE_INST"; else ABS_INST="$PROJECT_ROOT/$LIVE_INST"; fi
+    
+    local PROD_SUB_KEY=$(jq -r '.inputs.subtitles_production_ass // .inputs.subtitles_ass' "$PRESETS")
+    local ABS_SUB
+    if [[ "$PROD_SUB_KEY" == /* ]]; then ABS_SUB="$PROD_SUB_KEY"; else ABS_SUB="$PROJECT_ROOT/$PROD_SUB_KEY"; fi
+
     local SONG_NAME="karaoke_output"
-    if [[ -n "$INSTRUMENTS_ONLY" ]]; then
+    if [[ -n "$LIVE_INST" ]]; then
         local BASE_NAME=$(basename "$ABS_INST")
         SONG_NAME=$(echo "${BASE_NAME%.*}" | sed -E 's/_(instruments|vocals|mixed)?(_optimized)?$//')
     fi
 
-    local TARGET_DIR="$PROJECT_ROOT/outputs/karaoke"
+    # Uniform capitalized folder tracking
+    local TARGET_DIR="$PROJECT_ROOT/outputs/Karaoke"
     mkdir -p "$TARGET_DIR"
     local ABS_OUTPUT_FILE="$TARGET_DIR/${SONG_NAME}_karaoke.mp4"
-    local REL_OUTPUT_FILE="outputs/karaoke/${SONG_NAME}_karaoke.mp4"
+    local REL_OUTPUT_FILE="outputs/Karaoke/${SONG_NAME}_karaoke.mp4"
 
-    # Dependency check validation
     if [[ ! -f "$ABS_BG" || ! -f "$ABS_INST" || ! -f "$ABS_SUB" ]]; then
         echo "❌ ERROR: Cannot proceed with multiplexing."
         echo "   Missing: $( [[ ! -f "$ABS_SUB" ]] && echo "[Master Subtitles: $PROD_SUB_KEY] " )$( [[ ! -f "$ABS_BG" ]] && echo "[Background] " )$( [[ ! -f "$ABS_INST" ]] && echo "[Instrumental]" )"
@@ -44,12 +49,10 @@ create_karaoke_video() {
     echo ""
     echo "🎬 Rendering Production-Grade Karaoke Video..."
     echo "🎵 Song Identification: $SONG_NAME"
-    echo "📝 Using Subtitle Track: $(basename "$ABS_SUB")"
     echo "⏱️  Timeline Target:     $DURATION seconds"
-    echo "🎥 Deploying ffmpeg processing stream..."
     echo ""
 
-    ffmpeg -y -stream_loop -1 -i "$ABS_BG" -i "$ABS_INST" \
+    ffmpeg -nostdin -y -stream_loop -1 -i "$ABS_BG" -i "$ABS_INST" \
            -vf "$vf_filter" \
            -map 0:v:0 -map 1:a:0 \
            -t "$DURATION" \
@@ -59,11 +62,15 @@ create_karaoke_video() {
     if [[ $? -eq 0 && -f "$ABS_OUTPUT_FILE" ]]; then
         echo ""
         echo "✅ Video rendering complete!"
+        
+        # 💡 AUTOMATED REGISTRATION TRIGGER
         local temp_json=$(mktemp)
         jq --arg p "$REL_OUTPUT_FILE" '.outputs.karaoke_video = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
-        echo "💾 Asset map updated with video release location."
+        echo "💾 assets.json auto-updated with karaoke release location: $REL_OUTPUT_FILE"
     else
         echo "❌ ERROR: ffmpeg rendering processing pipeline failed."
         return 1
     fi
 }
+
+create_karaoke_video

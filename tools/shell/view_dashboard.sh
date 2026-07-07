@@ -2,7 +2,7 @@
 # Library: tools/shell/view_dashboard.sh
 
 open_preview_room() {
-    local PROJECT_DIR="/Users/jim/myKaraoke"
+    local PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
     local PRESETS="$PROJECT_DIR/assets.json"
 
     echo "🌐 Project Session Initialization Module"

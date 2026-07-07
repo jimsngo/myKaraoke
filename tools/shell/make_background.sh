@@ -28,12 +28,12 @@ make_background() {
     # -t 300: stops at 300 seconds (5 mins)
     # -an: removes all audio
     # -c:v copy: keeps original quality
-    ffmpeg -stream_loop -1 -i "$INPUT_VIDEO" -t 300 -an -c:v copy "$OUTPUT_NAME"
+    ffmpeg -nostdin -stream_loop -1 -i "$INPUT_VIDEO" -t 300 -an -c:v copy "$OUTPUT_NAME"
 
     if [[ $? -eq 0 ]]; then
         echo "✅ Success! File created: $OUTPUT_NAME"
     else
-        echo "❌ Error: ffmpeg failed. Check your input file."
+        echo "❌ Error: ffmpeg -nostdin failed. Check your input file."
     fi
 }
 

@@ -2,7 +2,7 @@
 # Standalone Utility: tools/shell/refactor_keys.sh
 # Purpose: Scan for variable string drift across assets, layouts, and automation tools
 
-PROJECT_DIR="/Users/jim/myKaraoke"
+PROJECT_DIR="${PROJECT_DIR:-/Users/jim/myKaraoke}"
 TMP_MATCHES="/tmp/mykaraoke_matches.txt"
 rm -f "$TMP_MATCHES"
 

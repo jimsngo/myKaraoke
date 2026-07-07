@@ -2,7 +2,7 @@
 # ==============================================================================
 # 🎵 myKaraoke Project Toolchain — Option 3 Module
 # Script: tools/shell/optimized_volume.sh
-# Purpose: Measures and standardizes audio loudness parameters using ffmpeg loudnorm.
+# Purpose: Measures and standardizes audio loudness parameters using ffmpeg -nostdin loudnorm.
 #
 # Schema Dependency Guards:
 #   👉 Required .inputs Keys: [ mixed_audio, instruments_only ]
@@ -15,7 +15,7 @@
 
 optimize_volume() {
     # --- Local Environment Variables Block ---
-    local PROJECT_ROOT="/Users/jim/myKaraoke"
+    local PROJECT_ROOT="$PROJECT_DIR"
     local PRESETS="$PROJECT_ROOT/assets.json"
     local JSON_GUARD="$PROJECT_ROOT/tools/shell/validate_json.sh"
 
@@ -63,7 +63,7 @@ optimize_volume() {
 
     echo "🎛️  Running loudness parameter pass on: $(basename "$TARGET_FILE")..."
 
-    local STATS=$(ffmpeg -i "$TARGET_FILE" -filter:a loudnorm=print_format=json -f null - 2>&1 | pcregrep -M '\{[\s\S]*\}')
+    local STATS=$(ffmpeg -nostdin -i "$TARGET_FILE" -filter:a loudnorm=print_format=json -f null - 2>&1 | pcregrep -M '\{[\s\S]*\}')
     
     if [[ -z "$STATS" ]]; then
         echo "❌ Error: Failed to analyze audio dynamics."
@@ -78,7 +78,7 @@ optimize_volume() {
     local TEMP_FILE="${TARGET_FILE%.*}_temp.mp3"
 
     echo "⚡ Applying precision volume normalization adjustments..."
-    ffmpeg -y -i "$TARGET_FILE" -filter:a \
+    ffmpeg -nostdin -y -nostdin -i "$TARGET_FILE" -filter:a \
     "loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=${I_INPUT}:measured_TP=${TP_INPUT}:measured_LRA=${LRA_INPUT}:measured_thresh=${thresh_input}:linear=true" \
     -b:a 192k "$TEMP_FILE"
 
@@ -86,7 +86,7 @@ optimize_volume() {
         mv "$TEMP_FILE" "$TARGET_FILE"
         echo "✅ Headroom peaks safely standardized down into original destination track file!"
     else
-        echo "❌ Error: ffmpeg failed to export normalized audio file."
+        echo "❌ Error: ffmpeg -nostdin failed to export normalized audio file."
         [[ -f "$TEMP_FILE" ]] && rm -f "$TEMP_FILE"
         return 1
     fi
