@@ -1,6 +1,22 @@
 #!/bin/bash
 # Library: tools/shell/ui_lib.sh
 
+get_dashboard_option_max() {
+    local presets_file="${1:-$PROJECT_DIR/assets.json}"
+    if [[ ! -f "$presets_file" ]]; then
+        echo "0"
+        return
+    fi
+
+    jq -r '
+        .dashboard_routing
+        | to_entries
+        | map(select(.key | test("^[0-9]+$")))
+        | map(.key | tonumber)
+        | if length == 0 then 0 else max end
+    ' "$presets_file" 2>/dev/null || echo "0"
+}
+
 display_menu() {
     clear
     
@@ -28,32 +44,41 @@ display_menu() {
     echo -e "\033[1;36m=========================================================\033[0m"
     echo ""
     
-    echo -e "\033[1;33m🌐 Preview Control Room:\033[0m"
-    echo "  1) Open Web Browser Preview Room (Sync Check Room)"
-    echo ""
+    local menu_rows
+    if [[ -f "$PRESETS_FILE" ]]; then
+        menu_rows=$(jq -r '
+            (.dashboard_routing // {})
+            | to_entries
+            | map(select(.key | test("^[0-9]+$")))
+            | sort_by(.key | tonumber)
+            | .[]
+            | [
+                .key,
+                (.value.category // "Other"),
+                (.value.label // "Unnamed option")
+              ]
+            | @tsv
+        ' "$PRESETS_FILE" 2>/dev/null)
+    fi
 
-    echo -e "\033[1;33m🎼 Audio Stem Engineering:\033[0m"
-    echo "  2) AI Stem Separation Engine     (Demucs Split Tracks)"
-    echo "  3) Optimize Track Headroom Peaks (Normalize Gain DB)"
-    echo ""
+    if [[ -n "$menu_rows" ]]; then
+        local current_category=""
+        while IFS=$'\t' read -r option_key category label; do
+            [[ -z "$option_key" ]] && continue
+            if [[ "$category" != "$current_category" ]]; then
+                [[ -n "$current_category" ]] && echo ""
+                echo -e "\033[1;33m${category}:\033[0m"
+                current_category="$category"
+            fi
+            printf " %2s) %s\n" "$option_key" "$label"
+        done <<< "$menu_rows"
+        echo ""
+    else
+        echo -e "\033[1;33m⚠️  Menu configuration missing in assets.json\033[0m"
+        echo ""
+    fi
 
-    echo -e "\033[1;33m📝 Subtitle Tracking Alignment:\033[0m"
-    echo "  4) Deploy Whisper AI Transcription (Auto-Caption Vocals)"
-    echo "  5) Compile Subtitles ASS From Logic's MIDI Track"
-    echo "  6) Import External Production .ASS Subtitle File Layouts"
-    echo ""
-
-    echo -e "\033[1;33m🎬 Video Rendering Suite:\033[0m"
-    echo "  7) Strip Audio Layer Out From Background Reference Videos"
-    echo "  8) Import & Optimize Background Scenery Videos"
-    echo "  9) Generate Karaoke Video from instrumental_only and Subtitles .ASS"
-    echo " 10) Generate Lyrics Video from mixed_audio and Subtitles .ASS"
-    echo ""
-
-    echo -e "\033[1;33m⚙️  Workspace Management:\033[0m"
-    echo " 11) Purge Local Render Output Storage Files"
-    echo " 12) Synchronize Project Canvas State Safely to GitHub"
-    echo " 13) Validate Project Assets and Naming Consistency"
+    echo "  0) Exit Dashboard"
     echo ""
     echo -e "\033[1;36m=========================================================\033[0m"
 }

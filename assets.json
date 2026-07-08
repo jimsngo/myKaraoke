@@ -1,47 +1,28 @@
 {
     "inputs": {
-        "song_title": "M\u00f9a Thu Y\u00eau \u0110\u01b0\u01a1ng",
-        "song_author": "Lam Ph\u01b0\u01a1ng",
-        "mixed_audio": "inputs/mixed/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Mixed_Lowered.mp3",
-        "instruments_only": "inputs/instruments/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Instruments_Lowered.mp3",
+        "song_title": "Con G\u00e1i B\u00e2y Gi\u1edd",
+        "song_author": "Qu\u1ed1c H\u00f9ng",
+        "mixed_audio": "inputs/mixed/Con_Gai_Bay_Gio_Mixed.mp3",
+        "instruments_only": "inputs/Instruments/Con_Gai_Bay_Gio_Instruments.mp3",
         "vocals_only": "",
-        "source_midi": "inputs/midi/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Lowered.mid",
+        "source_midi": "inputs/midi/Con_Gai_Bay_Gio.mid",
         "midi_key": "G-Minor",
         "seconds_per_beat": 0.461538,
         "vocalist_gender": "Male",
-        "subtitles_txt": "",
         "subtitles_srt": "",
-        "subtitles_ass": "inputs/Subtitles/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Lowered.ass",
-        "background": "/Users/jim/myKaraoke/inputs/Background/Waterfall Zoom Video Virtual Background.mp4",
+        "subtitles_ass": "inputs/Subtitles/Con_Gai_Bay_Gio.ass",
+        "background": "outputs/Background/Con_G\u00e1i_B\u00e2y_Gi\u1edd_optimized_background.mp4",
         "bpm": 130,
-        "subtitles_production_ass": "inputs/Subtitles/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Lowered.ass"
+        "subtitles_production_ass": "inputs/Subtitles/Con_Gai_Bay_Gio.ass",
+        "source_musicxml": "",
+        "source_midi_sanitized": ""
     },
     "settings": {
         "lead_in_beats": 1.0,
-        "min_break_gap": 1.0,
-        "min_word_duration": 0.5
-    },
-    "audio": {
-        "mixed_audio": "inputs/mixed/Karaoke_Cuo\u0302\u0301i_Tua\u0302\u0300n_V10_Mixed.mp3",
-        "instruments_only": "inputs/Instruments/Karaoke_Cuo\u0302\u0301i_Tua\u0302\u0300n_V10_Instruments_Melody.mp3",
-        "vocals_only": ""
-    },
-    "styling": {
-        "Gender_Mode": "Male",
-        "Font_Name": "Arial",
-        "Palettes": {
-            "Male": {
-                "Primary": "&H00FFFFFF&",
-                "Secondary": "&H00FF0000&"
-            },
-            "Female": {
-                "Primary": "&H00FFFFFF&",
-                "Secondary": "&H000000FF&"
-            }
-        }
+        "min_break_gap": 1.0
     },
     "outputs": {
-        "background_video": "outputs/Background/Karaoke_Cuoi_Tuan_optimized_background.mp4",
+        "background_video": "outputs/Background/Con_G\u00e1i_B\u00e2y_Gi\u1edd_optimized_background.mp4",
         "karaoke_video": "outputs/Karaoke/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Instruments_Lowered_karaoke.mp4",
         "lyrics_video": "outputs/lyrics/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Mixed_Lowered_lyrics.mp4"
     },
@@ -136,6 +117,13 @@
             "script": "tools/shell/validate_assets.sh",
             "function": "validate_project_assets",
             "note": "Requires 1 script to run: validate_assets.sh"
+        },
+        "14": {
+            "category": "\ud83d\udcdd Subtitle Tracking Alignment",
+            "label": "Export MuseScore-Friendly Sanitized MIDI From Logic MIDI",
+            "script": "tools/shell/export_musescore_xml.sh",
+            "function": "export_musescore_musicxml",
+            "note": "Requires 2 scripts to run: export_musescore_xml.sh and musescore_compat_midi.py"
         }
     }
 }

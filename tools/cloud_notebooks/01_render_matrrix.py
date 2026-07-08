@@ -44,6 +44,39 @@ def find_true_path(root, relative_path):
             current = os.path.join(current, part)
     return '/'.join(resolved_parts)
 
+def collapse_repeated_path(path):
+    """Fix accidental duplicated path prefixes, e.g. inputs/mixed/inputs/mixed/file.mp3."""
+    if not path:
+        return ""
+    clean = path.strip('/')
+    parts = clean.split('/')
+    for size in range(1, len(parts) // 2 + 1):
+        if parts[:size] == parts[size:2 * size]:
+            return '/'.join(parts[size:])
+    return clean
+
+def first_existing_relative_path(root, candidates):
+    """Return the first candidate path that resolves to an existing file."""
+    for candidate in candidates:
+        if not candidate:
+            continue
+
+        # Try as-is (case tolerant)
+        resolved = find_true_path(root, candidate)
+        abs_path = os.path.join(root, resolved)
+        if os.path.exists(abs_path):
+            return candidate, abs_path
+
+        # Try with collapsed duplicate prefixes
+        collapsed = collapse_repeated_path(candidate)
+        if collapsed != candidate:
+            resolved_collapsed = find_true_path(root, collapsed)
+            abs_collapsed = os.path.join(root, resolved_collapsed)
+            if os.path.exists(abs_collapsed):
+                return collapsed, abs_collapsed
+
+    return "", ""
+
 # 2. Parse Project Configurations
 with open('assets.json', 'r') as f:
     config = json.load(f)
@@ -54,29 +87,52 @@ song_name = re.sub(r'[\s_]+', '_', raw_title).strip('_')
 if "8 -" in ACTION_SELECT:
     RUN_OPTION = 8
     print(f"\n🚀 RUNNING CLOUD ENGINE: OPTIMIZE BACKGROUND")
-    audio_rel = config['inputs'].get('mixed_audio') or config['inputs'].get('instruments_only')
+    audio_candidates = [
+        config['inputs'].get('mixed_audio'),
+        config['inputs'].get('instruments_only')
+    ]
     dest_filename = f"{song_name}_optimized_background.mp4"
     final_gdrive_dir = os.path.join(cloud_project_root, "outputs/Background")
 elif "9 -" in ACTION_SELECT:
     RUN_OPTION = 9
     print(f"\n🚀 RUNNING CLOUD ENGINE: KARAOKE GENERATOR")
-    audio_rel = config['inputs'].get('instruments_only')
+    audio_candidates = [config['inputs'].get('instruments_only')]
     dest_filename = f"{song_name}_karaoke.mp4"
     final_gdrive_dir = os.path.join(cloud_project_root, "outputs/Karaoke")
 elif "10 -" in ACTION_SELECT:
     RUN_OPTION = 10
     print(f"\n🚀 RUNNING CLOUD ENGINE: FULL MIX LYRICS")
-    audio_rel = config['inputs'].get('mixed_audio')
+    audio_candidates = [
+        config['inputs'].get('mixed_audio'),
+        config['inputs'].get('instruments_only')
+    ]
     dest_filename = f"{song_name}_lyrics.mp4"
     final_gdrive_dir = os.path.join(cloud_project_root, "outputs/Lyrics")
 
-src_audio_track = os.path.join(cloud_project_root, find_true_path(cloud_project_root, audio_rel))
+audio_rel, src_audio_track = first_existing_relative_path(cloud_project_root, audio_candidates)
+if not src_audio_track:
+    print("\n❌ Could not resolve an existing audio track for this action.")
+    print("   Checked candidates:")
+    for c in audio_candidates:
+        if c:
+            print(f"   - {c}")
+    sys.exit(1)
 
-total_duration = 213.20  
+if config['inputs'].get('mixed_audio') and audio_rel != config['inputs'].get('mixed_audio'):
+    print(f"   ⚠️  mixed_audio path unavailable; falling back to: {audio_rel}")
+
+total_duration = None
 try:
     probe_cmd = f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '{src_audio_track}'"
     total_duration = float(subprocess.check_output(probe_cmd, shell=True).strip())
-except: pass
+except Exception as e:
+    print(f"\n❌ Unable to probe audio duration from: {src_audio_track}")
+    print(f"   ffprobe error: {e}")
+    sys.exit(1)
+
+if total_duration is None or total_duration <= 0:
+    print(f"\n❌ Invalid audio duration detected: {total_duration}")
+    sys.exit(1)
 
 opt_bg_filename = f"{song_name}_optimized_background.mp4"
 opt_bg_gdrive_path = os.path.join(cloud_project_root, "outputs/Background", opt_bg_filename)

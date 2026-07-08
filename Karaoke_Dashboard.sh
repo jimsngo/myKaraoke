@@ -19,7 +19,8 @@ initialize_or_verify_session
 # 🎛️ PHASE 2: DYNAMIC UTILITY ROUTING MENU LOOP
 while true; do
     display_menu  # Reads assets.json live to draw the current track header
-    echo -n -e "👉 Select option [0-13] (or hit Enter to re-display menu): "
+    OPTION_MAX=$(get_dashboard_option_max "$ASSETS_FILE")
+    echo -n -e "👉 Select option [0-$OPTION_MAX] (or hit Enter to re-display menu): "
     read -r choice
 
     if [[ -z "$choice" ]]; then

@@ -10,7 +10,9 @@ import os
 import re
 import sys
 import unicodedata
-from datetime import datetime
+import zipfile
+from datetime import datetime, timezone
+import xml.etree.ElementTree as ET
 
 import mido
 import shutil
@@ -106,6 +108,157 @@ def seconds_from_ticks(target_tick, ticks_per_beat, tempo_events):
     if target_tick > cur_tick:
         total += (target_tick - cur_tick) * cur_tempo / ticks_per_beat / 1_000_000.0
     return total
+
+
+def seconds_from_quarters(target_quarter, tempo_events):
+    if target_quarter <= 0:
+        return 0.0
+    total = 0.0
+    cur_q = 0.0
+    cur_bpm = tempo_events[0][1]
+    for ev_q, bpm in tempo_events:
+        if ev_q > cur_q and ev_q <= target_quarter:
+            total += (ev_q - cur_q) * (60.0 / cur_bpm)
+            cur_q = ev_q
+        cur_bpm = bpm
+    if target_quarter > cur_q:
+        total += (target_quarter - cur_q) * (60.0 / cur_bpm)
+    return total
+
+
+def _local_name(tag):
+    return tag.split("}", 1)[-1] if "}" in tag else tag
+
+
+def _load_musicxml_root(path):
+    ext = os.path.splitext(path)[1].lower()
+    if ext != ".mxl":
+        return ET.parse(path).getroot()
+
+    with zipfile.ZipFile(path, "r") as zf:
+        rootfile_path = None
+        if "META-INF/container.xml" in zf.namelist():
+            container = ET.fromstring(zf.read("META-INF/container.xml"))
+            for elem in container.iter():
+                if _local_name(elem.tag) == "rootfile":
+                    rootfile_path = elem.attrib.get("full-path")
+                    if rootfile_path:
+                        break
+        if not rootfile_path:
+            for name in zf.namelist():
+                if name.lower().endswith(".xml") and not name.startswith("META-INF/"):
+                    rootfile_path = name
+                    break
+        if not rootfile_path:
+            raise ValueError(f"Unable to find score XML inside {path}")
+        return ET.fromstring(zf.read(rootfile_path))
+
+
+def extract_syllables_from_musicxml(source_path):
+    if not os.path.exists(source_path):
+        print(f"❌ ERROR: MusicXML file '{source_path}' not found.")
+        sys.exit(1)
+
+    root = _load_musicxml_root(source_path)
+    parts = [node for node in root if _local_name(node.tag) == "part"]
+    if not parts:
+        print(f"❌ ERROR: No <part> found in MusicXML: {source_path}")
+        sys.exit(1)
+
+    part = parts[0]
+    divisions = 1
+    abs_quarter = 0.0
+    tempo_events = [(0.0, TARGET_BPM)]
+    tokens = []
+
+    for measure in part:
+        if _local_name(measure.tag) != "measure":
+            continue
+
+        for item in measure:
+            item_name = _local_name(item.tag)
+
+            if item_name == "attributes":
+                for sub in item:
+                    if _local_name(sub.tag) == "divisions" and sub.text:
+                        try:
+                            divisions = max(1, int(float(sub.text.strip())))
+                        except Exception:
+                            pass
+
+            elif item_name == "direction":
+                for sub in item.iter():
+                    if _local_name(sub.tag) == "sound" and "tempo" in sub.attrib:
+                        try:
+                            bpm = float(sub.attrib["tempo"])
+                            if bpm > 0:
+                                tempo_events.append((abs_quarter, bpm))
+                        except Exception:
+                            pass
+
+            elif item_name == "note":
+                is_chord = False
+                is_rest = False
+                duration_div = 0
+                lyric_text = None
+
+                for sub in item:
+                    sub_name = _local_name(sub.tag)
+                    if sub_name == "chord":
+                        is_chord = True
+                    elif sub_name == "rest":
+                        is_rest = True
+                    elif sub_name == "duration" and sub.text:
+                        try:
+                            duration_div = int(float(sub.text.strip()))
+                        except Exception:
+                            duration_div = 0
+                    elif sub_name == "lyric" and lyric_text is None:
+                        for lyr_sub in sub.iter():
+                            if _local_name(lyr_sub.tag) == "text":
+                                lyric_text = lyr_sub.text or ""
+                                break
+
+                dur_quarter = (duration_div / divisions) if divisions else 0.0
+                if dur_quarter <= 0:
+                    dur_quarter = 0.25
+
+                start_quarter = abs_quarter if not is_chord else max(0.0, abs_quarter - dur_quarter)
+                end_quarter = start_quarter + dur_quarter
+
+                if lyric_text is not None and not is_rest:
+                    raw_txt = unicodedata.normalize("NFC", str(lyric_text))
+                    processed = re.sub(r"([^ ])/([^ ])", r"\1 / \2", raw_txt)
+                    style_tag, processed = parse_style_tag(processed)
+                    card_break = "/" in processed
+                    clean = processed.replace("/", "").strip()
+                    if clean == "":
+                        if tokens and card_break:
+                            tokens[-1]["card_break"] = True
+                    else:
+                        tokens.append({
+                            "text": " " + clean,
+                            "start_time": seconds_from_quarters(start_quarter, tempo_events),
+                            "end_time": seconds_from_quarters(end_quarter, tempo_events),
+                            "card_break": card_break,
+                            "style_tag": style_tag,
+                            "raw_start_tick": start_quarter,
+                            "raw_end_tick": end_quarter,
+                        })
+
+                if not is_chord:
+                    abs_quarter += dur_quarter
+
+    tempo_events.sort(key=lambda t: t[0])
+    dedup_tempo_events = []
+    for q, bpm in tempo_events:
+        if dedup_tempo_events and abs(dedup_tempo_events[-1][0] - q) < 1e-9:
+            dedup_tempo_events[-1] = (q, bpm)
+        else:
+            dedup_tempo_events.append((q, bpm))
+
+    tokens.sort(key=lambda t: t["start_time"])
+    return tokens, dedup_tempo_events
 
 
 # Extract lyric tokens aligned to note_on/note_off events
@@ -258,7 +411,9 @@ def write_styles_sidecar(cards, out_path, midi_path=None):
         # copy to inputs/Subtitles
         inputs_dir = os.path.join(os.path.dirname(os.path.abspath(ASSETS_PATH)), "inputs", "Subtitles")
         os.makedirs(inputs_dir, exist_ok=True)
-        shutil.copyfile(styles_path, os.path.join(inputs_dir, os.path.basename(styles_path)))
+        target_path = os.path.join(inputs_dir, os.path.basename(styles_path))
+        if os.path.abspath(styles_path) != os.path.abspath(target_path):
+            shutil.copyfile(styles_path, target_path)
         print(f"📝 Wrote styles sidecar: {styles_path}")
     except Exception as e:
         print(f"⚠️ Failed to write styles sidecar: {e}")
@@ -617,44 +772,55 @@ def compile_ass_file(raw_tokens, out_path, styles_map=None, char_scroll=False, a
         print(f"⚠️ Warning: Database auto-update failed: {e}")
 
 
-def write_midi_report(midi_path, out_path, midi_file, tokens, tempo_events, preview_path=None, report_path=None):
+def write_midi_report(source_path, out_path, midi_file, tokens, tempo_events, preview_path=None, report_path=None, source_type="midi"):
     report_path = report_path or os.path.splitext(out_path)[0] + ".report.txt"
     report_dir = os.path.dirname(os.path.abspath(report_path))
     if report_dir:
         os.makedirs(report_dir, exist_ok=True)
     lines = []
-    lines.append(f"MIDI report for: {midi_path}")
+    lines.append(f"Source report for: {source_path}")
     lines.append(f"ASS output: {out_path}")
+    lines.append(f"- source type: {source_type}")
     lines.append("")
-    time_sigs = parse_time_signatures(midi_file)
-    lines.append(f"- time signatures found: {len(time_sigs)}")
+    if midi_file is not None:
+        time_sigs = parse_time_signatures(midi_file)
+        lines.append(f"- time signatures found: {len(time_sigs)}")
+    lines.append(f"- tokens extracted: {len(tokens)}")
+    lines.append(f"- tempo markers: {len(tempo_events)}")
     if preview_path:
         lines.append(f"- preview JSON: {preview_path}")
     with open(report_path, "w", encoding="utf-8") as rf:
         rf.write("\n".join(lines) + "\n")
-    print(f"📝 Wrote MIDI report: {report_path}")
+    print(f"📝 Wrote source report: {report_path}")
 
 
-def write_preview_json(midi_path, out_path, tokens, preview_path, midi_file, tempo_events):
+def write_preview_json(source_path, out_path, tokens, preview_path, tempo_events, source_type="midi"):
     cards = group_cards(tokens)
+    if source_type == "midi":
+        tempo_data = [{"tick": t, "tempo": tempo, "bpm": mido.tempo2bpm(tempo)} for t, tempo in tempo_events]
+    else:
+        tempo_data = [{"quarter": q, "bpm": bpm} for q, bpm in tempo_events]
     preview_data = {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
-        "midi_path": midi_path,
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "source_path": source_path,
+        "source_type": source_type,
         "ass_path": out_path,
         "target_bpm": TARGET_BPM,
-        "tempo_events": [{"tick": t, "tempo": tempo, "bpm": mido.tempo2bpm(tempo)} for t, tempo in tempo_events],
+        "tempo_events": tempo_data,
         "tokens": [{"text": tok["text"].strip(), "start_time": tok["start_time"], "end_time": tok["end_time"], "card_break": tok["card_break"], "style_tag": tok.get("style_tag")} for tok in tokens],
         "cards": [{"index": i+1, "token_count": len(c["tokens"]), "style_tag": c.get("style_tag", "default"), "text": "".join([t["text"].strip() + " " for t in c["tokens"]]).strip(), "start_time": c["true_start"], "end_time": c["true_end"]} for i, c in enumerate(cards)],
     }
+    if source_type == "midi":
+        preview_data["midi_path"] = source_path
     with open(preview_path, "w", encoding="utf-8") as pf:
         json.dump(preview_data, pf, indent=2, ensure_ascii=False)
     print(f"📝 Wrote preview JSON: {preview_path}")
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Convert MIDI lyrics to karaoke ASS with report + preview JSON.")
-    p.add_argument("midi", nargs="?", help="Input MIDI file. If omitted, uses MIDI_FILE env.")
-    p.add_argument("--out", "-o", help="Output ASS path. Default based on MIDI path or SUBTITLES_ASS env.")
+    p = argparse.ArgumentParser(description="Convert MIDI or MusicXML lyrics to karaoke ASS with report + preview JSON.")
+    p.add_argument("midi", nargs="?", help="Input source file (.mid/.midi/.xml/.musicxml/.mxl). If omitted, uses MIDI_FILE env.")
+    p.add_argument("--out", "-o", help="Output ASS path. Default based on input path or SUBTITLES_ASS env.")
     p.add_argument("--report", "-r", help="Report output path. Defaults to <ass output>.report.txt")
     p.add_argument("--preview", "-p", help="Preview JSON path. When set, preview JSON will be written.")
     p.add_argument("--styles", "-s", help="Sidecar styles file mapping card numbers to M/F (simple text file).")
@@ -667,13 +833,13 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    midi_path = args.midi or os.environ.get("MIDI_FILE")
-    if not midi_path:
-        print("❌ ERROR: No MIDI input provided. Set MIDI_FILE env or pass MIDI path.")
+    source_path = args.midi or os.environ.get("MIDI_FILE")
+    if not source_path:
+        print("❌ ERROR: No input provided. Set MIDI_FILE env or pass input path.")
         sys.exit(1)
     out_path = args.out or os.environ.get("SUBTITLES_ASS")
     if not out_path:
-        out_path = os.path.join("inputs", "Subtitles", f"{os.path.splitext(os.path.basename(midi_path))[0]}.ass")
+        out_path = os.path.join("inputs", "Subtitles", f"{os.path.splitext(os.path.basename(source_path))[0]}.ass")
 
     preview_path = args.preview or os.path.splitext(out_path)[0] + ".preview.json"
     report_path = args.report or os.path.splitext(out_path)[0] + ".report.txt"
@@ -681,11 +847,18 @@ if __name__ == "__main__":
     if args.target_bpm:
         TARGET_BPM = args.target_bpm
 
-    tokens = extract_syllables_from_midi(midi_path)
-    mid = mido.MidiFile(midi_path)
-    tempo_events = parse_tempo_events(mid)
+    ext = os.path.splitext(source_path)[1].lower()
+    source_type = "musicxml" if ext in (".xml", ".musicxml", ".mxl") else "midi"
 
-    write_midi_report(midi_path, out_path, mid, tokens, tempo_events, preview_path=preview_path, report_path=report_path)
+    if source_type == "musicxml":
+        tokens, tempo_events = extract_syllables_from_musicxml(source_path)
+        mid = None
+    else:
+        tokens = extract_syllables_from_midi(source_path)
+        mid = mido.MidiFile(source_path)
+        tempo_events = parse_tempo_events(mid)
+
+    write_midi_report(source_path, out_path, mid, tokens, tempo_events, preview_path=preview_path, report_path=report_path, source_type=source_type)
 
     default_styles_path = os.path.splitext(out_path)[0] + ".styles.txt"
     styles_path = None
@@ -700,7 +873,7 @@ if __name__ == "__main__":
         print(f"🎨 No styles sidecar found. Creating default styles sidecar: {default_styles_path}")
         try:
             cards_for_styles = group_cards(tokens)
-            write_styles_sidecar(cards_for_styles, out_path, midi_path=midi_path)
+            write_styles_sidecar(cards_for_styles, out_path, midi_path=source_path)
             styles_path = default_styles_path
             print(f"🆕 Created base styles sidecar with {len(cards_for_styles)} cards from default gender {GENDER_SELECTION}.")
             print(f"✅ Initial base ASS will be generated at: {out_path}")
@@ -714,4 +887,4 @@ if __name__ == "__main__":
         compile_ass_file(tokens, out_path, styles_map=styles_map, char_scroll=args.char_scroll, alternate_rows=args.alternate_rows)
         print(f"✅ Final ASS generated at {out_path}. Re-run option 5 after editing {styles_path} to update the ASS.")
     if args.mode in ("preview", "both"):
-        write_preview_json(midi_path, out_path, tokens, preview_path, mid, tempo_events)
+        write_preview_json(source_path, out_path, tokens, preview_path, tempo_events, source_type=source_type)
