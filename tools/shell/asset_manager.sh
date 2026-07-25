@@ -36,8 +36,10 @@ handle_and_localize_asset() {
         return
     fi
     
-    if [[ "$source_path" == $PROJECT_DIR/* ]]; then
-        echo "$source_path" | sed 's|$PROJECT_DIR/||'
+    if [[ "$source_path" == "$PROJECT_DIR"/* ]]; then
+        # Preserve paths inside the project as workspace-relative for portability (e.g., Colab).
+        local rel_path="${source_path#"$PROJECT_DIR"/}"
+        echo "$rel_path"
         return
     fi
     

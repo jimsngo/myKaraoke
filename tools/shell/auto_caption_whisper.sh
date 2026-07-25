@@ -44,14 +44,20 @@ auto_caption_whisper() {
 
     local ABS_VOCALS="$PROJECT_DIR/$VOCALS_ONLY"
     local BASE_NAME=$(basename "$ABS_VOCALS")
-    local TRACK_NAME="${BASE_NAME%_vocals.*}"
+    local TRACK_STEM="${BASE_NAME%.*}"
+    # Strip common trailing vocals suffixes so outputs stay clean (e.g., *_Vocals -> *.srt)
+    local TRACK_NAME
+    TRACK_NAME=$(printf '%s' "$TRACK_STEM" | sed -E 's/([._ -]?[Vv]ocals?)$//')
+    if [[ -z "$TRACK_NAME" ]]; then
+        TRACK_NAME="$TRACK_STEM"
+    fi
 
-    # Force a clean lowercase directory tree to match your global blueprint
-    local SUB_DIR="$INPUT_DIR/subtitles"
+    # Keep subtitle assets aligned with the project canonical folder casing
+    local SUB_DIR="$INPUT_DIR/Subtitles"
     mkdir -p "$SUB_DIR"
     
     local ABS_OUTPUT_SRT="$SUB_DIR/${TRACK_NAME}.srt"
-    local REL_OUTPUT_SRT="inputs/subtitles/${TRACK_NAME}.srt"
+    local REL_OUTPUT_SRT="inputs/Subtitles/${TRACK_NAME}.srt"
 
     echo ""
     echo "🌐 Select Transcription Language:"

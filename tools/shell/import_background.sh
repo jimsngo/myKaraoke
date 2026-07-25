@@ -95,7 +95,7 @@ import_background() {
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             local temp_json=$(mktemp)
             # TWIN INJECTION: Updates both input loop variable AND central output registry block
-            jq --arg p "$REL_OUTPUT_PATH" '.inputs.background = $p | .outputs.background_video = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
+            jq --arg p "$REL_OUTPUT_PATH" '.outputs.background_video = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
             echo "📝 Registered background loop mappings successfully!"
         fi
         return 0

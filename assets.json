@@ -1,30 +1,32 @@
 {
     "inputs": {
-        "song_title": "Con G\u00e1i B\u00e2y Gi\u1edd",
-        "song_author": "Qu\u1ed1c H\u00f9ng",
-        "mixed_audio": "inputs/mixed/Con_Gai_Bay_Gio_Mixed.mp3",
-        "instruments_only": "inputs/Instruments/Con_Gai_Bay_Gio_Instruments.mp3",
+        "song_title": "M\u1eaft L\u1ec7 Cho Ng\u01b0\u1eddi",
+        "song_author": "(T\u1eeb C\u00f4ng Ph\u1ee5ng)",
+        "mixed_audio": "",
+        "instruments_only": "inputs/Instruments/Mat_Le_Cho_Nguoi_instruments.mp3",
         "vocals_only": "",
-        "source_midi": "inputs/midi/Con_Gai_Bay_Gio.mid",
-        "midi_key": "G-Minor",
-        "seconds_per_beat": 0.461538,
+        "source_midi": "inputs/midi/Mat_Le_Cho_Nguoi.mid",
+        "midi_key": "",
+        "seconds_per_beat": 0.5,
         "vocalist_gender": "Male",
         "subtitles_srt": "",
-        "subtitles_ass": "inputs/Subtitles/Con_Gai_Bay_Gio.ass",
-        "background": "outputs/Background/Con_G\u00e1i_B\u00e2y_Gi\u1edd_optimized_background.mp4",
-        "bpm": 130,
-        "subtitles_production_ass": "inputs/Subtitles/Con_Gai_Bay_Gio.ass",
+        "subtitles_ass": "inputs/Subtitles/Mat_Le_Cho_Nguoi.ass",
+        "background_raw": "inputs/Background/White Green Handwritten Photocentric Gardening Outro Youtube Video.mp4",
+        "bpm": 120,
         "source_musicxml": "",
-        "source_midi_sanitized": ""
+        "source_midi_sanitized": "",
+        "subtitles_srt_whisper": "",
+        "background": ""
     },
     "settings": {
         "lead_in_beats": 1.0,
-        "min_break_gap": 1.0
+        "min_break_gap": 1.0,
+        "max_gap_seconds": 5.0
     },
     "outputs": {
-        "background_video": "outputs/Background/Con_G\u00e1i_B\u00e2y_Gi\u1edd_optimized_background.mp4",
-        "karaoke_video": "outputs/Karaoke/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Instruments_Lowered_karaoke.mp4",
-        "lyrics_video": "outputs/lyrics/Mu\u0300a_Thu_Ye\u0302u_\u0110u\u031bo\u031bng_Mixed_Lowered_lyrics.mp4"
+        "background_video": "outputs/Background/M\u1eaft_L\u1ec7_Cho_Ng\u01b0\u1eddi_optimized_background.mp4",
+        "karaoke_video": "outputs/Background/Mot_Lan_La_Mai_Mai_karaoke.mp4",
+        "lyrics_video": ""
     },
     "dashboard_routing": {
         "1": {

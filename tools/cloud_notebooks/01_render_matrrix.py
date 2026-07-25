@@ -5,6 +5,7 @@ import subprocess
 import re
 import shutil
 import unicodedata
+from collections import deque
 
 # ==============================================================================
 # 🎛️ CLOUD TOOLCHAIN INTERACTIVE CONTROL PANEL
@@ -45,9 +46,7 @@ def find_true_path(root, relative_path):
     return '/'.join(resolved_parts)
 
 def collapse_repeated_path(path):
-    """Fix accidental duplicated path prefixes, e.g. inputs/mixed/inputs/mixed/file.mp3."""
-    if not path:
-        return ""
+    if not path: return ""
     clean = path.strip('/')
     parts = clean.split('/')
     for size in range(1, len(parts) // 2 + 1):
@@ -56,28 +55,20 @@ def collapse_repeated_path(path):
     return clean
 
 def first_existing_relative_path(root, candidates):
-    """Return the first candidate path that resolves to an existing file."""
     for candidate in candidates:
-        if not candidate:
-            continue
-
-        # Try as-is (case tolerant)
+        if not candidate: continue
         resolved = find_true_path(root, candidate)
         abs_path = os.path.join(root, resolved)
-        if os.path.exists(abs_path):
-            return candidate, abs_path
+        if os.path.exists(abs_path): return candidate, abs_path
 
-        # Try with collapsed duplicate prefixes
         collapsed = collapse_repeated_path(candidate)
         if collapsed != candidate:
             resolved_collapsed = find_true_path(root, collapsed)
             abs_collapsed = os.path.join(root, resolved_collapsed)
-            if os.path.exists(abs_collapsed):
-                return collapsed, abs_collapsed
-
+            if os.path.exists(abs_collapsed): return collapsed, abs_collapsed
     return "", ""
 
-# 2. Parse Project Configurations
+# 2. Parse Project Configurations (Tempo/BPM Metadata Ignored)
 with open('assets.json', 'r') as f:
     config = json.load(f)
 
@@ -87,10 +78,7 @@ song_name = re.sub(r'[\s_]+', '_', raw_title).strip('_')
 if "8 -" in ACTION_SELECT:
     RUN_OPTION = 8
     print(f"\n🚀 RUNNING CLOUD ENGINE: OPTIMIZE BACKGROUND")
-    audio_candidates = [
-        config['inputs'].get('mixed_audio'),
-        config['inputs'].get('instruments_only')
-    ]
+    audio_candidates = [config['inputs'].get('mixed_audio'), config['inputs'].get('instruments_only')]
     dest_filename = f"{song_name}_optimized_background.mp4"
     final_gdrive_dir = os.path.join(cloud_project_root, "outputs/Background")
 elif "9 -" in ACTION_SELECT:
@@ -102,24 +90,14 @@ elif "9 -" in ACTION_SELECT:
 elif "10 -" in ACTION_SELECT:
     RUN_OPTION = 10
     print(f"\n🚀 RUNNING CLOUD ENGINE: FULL MIX LYRICS")
-    audio_candidates = [
-        config['inputs'].get('mixed_audio'),
-        config['inputs'].get('instruments_only')
-    ]
+    audio_candidates = [config['inputs'].get('mixed_audio'), config['inputs'].get('instruments_only')]
     dest_filename = f"{song_name}_lyrics.mp4"
     final_gdrive_dir = os.path.join(cloud_project_root, "outputs/Lyrics")
 
 audio_rel, src_audio_track = first_existing_relative_path(cloud_project_root, audio_candidates)
 if not src_audio_track:
     print("\n❌ Could not resolve an existing audio track for this action.")
-    print("   Checked candidates:")
-    for c in audio_candidates:
-        if c:
-            print(f"   - {c}")
     sys.exit(1)
-
-if config['inputs'].get('mixed_audio') and audio_rel != config['inputs'].get('mixed_audio'):
-    print(f"   ⚠️  mixed_audio path unavailable; falling back to: {audio_rel}")
 
 total_duration = None
 try:
@@ -127,11 +105,6 @@ try:
     total_duration = float(subprocess.check_output(probe_cmd, shell=True).strip())
 except Exception as e:
     print(f"\n❌ Unable to probe audio duration from: {src_audio_track}")
-    print(f"   ffprobe error: {e}")
-    sys.exit(1)
-
-if total_duration is None or total_duration <= 0:
-    print(f"\n❌ Invalid audio duration detected: {total_duration}")
     sys.exit(1)
 
 opt_bg_filename = f"{song_name}_optimized_background.mp4"
@@ -141,7 +114,11 @@ if RUN_OPTION in [9, 10] and os.path.exists(opt_bg_gdrive_path):
     src_bg = opt_bg_gdrive_path
     print("   ✨ Smart Routing active: Pre-rendered background locked.")
 else:
-    src_bg = os.path.join(cloud_project_root, find_true_path(cloud_project_root, config['inputs']['background']))
+    bg_path = config['inputs'].get('background_raw')
+    if not bg_path:
+        print("\n❌ ERROR: The 'background_raw' key is missing from the 'inputs' section of your assets.json file.")
+        sys.exit(1)
+    src_bg = os.path.join(cloud_project_root, find_true_path(cloud_project_root, bg_path))
 
 local_bg = os.path.join(scratch_dir, os.path.basename(src_bg))
 local_output = os.path.join(scratch_dir, dest_filename)
@@ -159,7 +136,6 @@ if RUN_OPTION in [9, 10]:
     shutil.copy2(src_audio_track, local_audio)
     shutil.copy2(src_sub, local_sub)
     
-    # Sync gender sections and icons for overlay rendering (Karaoke mode only)
     if RUN_OPTION == 9:
         src_gender_sections = os.path.join(cloud_project_root, 'inputs/text/gender_sections.json')
         local_gender_sections = os.path.join(scratch_dir, 'gender_sections.json')
@@ -177,10 +153,8 @@ if RUN_OPTION in [9, 10]:
 
 print("✅ Local scratch memory mounted!")
 
-# 4. Enforce High-Fidelity Font Environments
 print("   🔤 Installing Vietnamese-compatible font packages...")
 subprocess.run(["apt-get", "update", "-y"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-# Install multiple font packages for better Vietnamese support
 subprocess.run(["apt-get", "install", "-y", "fonts-liberation", "fonts-dejavu", "fonts-noto"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 if RUN_OPTION in [9, 10]:
@@ -192,38 +166,31 @@ if RUN_OPTION in [9, 10]:
     clean_author = config['inputs'].get('song_author', 'Unknown').replace('_', ' ')
     
     sub_content = re.sub(r'(Dialogue: 0,0:00:00.00,.*?,Title,,0,0,0,,{.*?}).*', rf'\1{clean_title}\\N{{\\fs50}}{clean_author}', sub_content)
-    
-    # 💡 SMART FONT MAPPING FOR COLAB COMPATIBILITY
-    # Map Arial (Mac font) to DejaVu Sans (Colab available, full Vietnamese support)
-    # This preserves the original font intent while ensuring compatibility
     sub_content = re.sub(r'(Style:\s*[^,]+,)\s*Arial\s*,', r'\1DejaVu Sans,', sub_content, flags=re.IGNORECASE)
-    
-    # Force full text normalization to prevent dropped characters
     sub_content = unicodedata.normalize('NFC', sub_content)
     
     with open(local_sub, 'w', encoding='utf-8') as f_sub:
         f_sub.write(sub_content)
 
-# 5. Tuned Production Quality Profiles (Optimized Bitrates)
+# 5. Tuned Production Quality Profiles (Colab CPU Optimized)
+# Safely escape the subtitle path if subtitles are loaded for this action
+escaped_sub = local_sub.replace("'", r"\'").replace(":", r"\:") if ('local_sub' in locals() and local_sub) else ""
+
 if RUN_OPTION == 8:
     ffmpeg_cmd = [
         'ffmpeg', '-y', '-nostdin',
         '-stream_loop', '-1',
         '-i', local_bg,
         '-t', f"{total_duration:.2f}",
-        '-vf', 'scale=1920:1080,fps=30',
-        '-c:v', 'h264_nvenc', '-preset', 'p4', '-rc', 'vbr', '-cq', '28',
+        '-vf', 'scale=1920:1080:flags=fast_bilinear,fps=30',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
         '-pix_fmt', 'yuv420p',
         '-an',
         local_output
     ]
 elif RUN_OPTION == 9:
-    # 💡 KARAOKE RENDER: Subtitles + Overlay Icons based on Gender Sections
-    # Build dynamic filter_complex with icon overlays
-    filter_parts = [f"[0:v]subtitles={local_sub}[v_sub]"]
-    input_index = 2  # Start after background (0) and audio (1)
-    
-    # Load gender sections and build overlay filters
+    filter_parts = [f"[0:v]subtitles='{escaped_sub}'[v_sub]"]
+    input_index = 2
     gender_map = {'male': 'male_icon.png', 'female': 'female_icon.png', 'duet': 'duet_icon.png'}
     icon_inputs = []
     overlay_filters = []
@@ -241,24 +208,13 @@ elif RUN_OPTION == 9:
             icon_path = local_icons.get(icon_file)
             
             if icon_path and os.path.exists(icon_path):
-                # Input pad for this icon
                 input_pad = f"[{input_index}]"
                 icon_inputs.append(['-i', icon_path])
-                
-                # Determine icon positioning based on gender
-                if gender == 'duet':
-                    x_pos, y_pos = '20', '440'  # Duet icon positioned higher
-                else:
-                    x_pos, y_pos = '20', '475'  # Single gender icons
-                
-                # Overlay filter with timing enable
+                x_pos, y_pos = ('20', '440') if gender == 'duet' else ('20', '475')
                 prev_pad = f"[v_sub]" if idx == 0 else f"[v_overlay_{idx-1}]"
-                overlay_filters.append(
-                    f"{prev_pad}{input_pad}overlay={x_pos}:{y_pos}:enable='between(t,{start},{end})'[v_overlay_{idx}]"
-                )
+                overlay_filters.append(f"{prev_pad}{input_pad}overlay={x_pos}:{y_pos}:enable='between(t,{start},{end})'[v_overlay_{idx}]")
                 input_index += 1
         
-        # Build final filter_complex
         if overlay_filters:
             filter_parts.extend(overlay_filters)
             filter_complex = ";".join(filter_parts)
@@ -270,49 +226,72 @@ elif RUN_OPTION == 9:
         filter_complex = ";".join(filter_parts)
         final_pad = "[v_sub]"
     
-    # Build ffmpeg command
-    ffmpeg_cmd = ['ffmpeg', '-y', '-nostdin', '-i', local_bg, '-i', local_audio]
-    
-    # Add icon inputs
+    # ADDED: -stream_loop -1 guarantees the background feeds frames indefinitely until cut
+    ffmpeg_cmd = ['ffmpeg', '-y', '-nostdin', '-stream_loop', '-1', '-i', local_bg, '-i', local_audio]
     if icon_inputs:
         for icon_input in icon_inputs:
             ffmpeg_cmd.extend(icon_input)
     
-    # Add filter complex and mappings
     ffmpeg_cmd.extend([
         '-filter_complex', filter_complex,
         '-map', f'{final_pad}',
         '-map', '1:a:0',
-        '-c:v', 'h264_nvenc', '-preset', 'p4', '-rc', 'vbr', '-cq', '25',
+        '-t', f"{total_duration:.2f}", # ADDED: Hard stop based on audio duration
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '25',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac', '-b:a', '192k',
         '-shortest',
         local_output
     ])
 else:
-    # 💡 FULL MIX LYRICS: Simple subtitle render without overlays
     ffmpeg_cmd = [
         'ffmpeg', '-y', '-nostdin',
+        '-stream_loop', '-1', # ADDED loop protection
         '-i', local_bg,
         '-i', local_audio,
-        '-vf', f"subtitles={local_sub}",
+        '-t', f"{total_duration:.2f}", # ADDED hard stop
+        '-vf', f"subtitles='{escaped_sub}'",
         '-map', '0:v:0',   
         '-map', '1:a:0',   
-        '-c:v', 'h264_nvenc', '-preset', 'p4', '-rc', 'vbr', '-cq', '25',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '25',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac', '-b:a', '192k',
         '-shortest',
         local_output
     ]
 
-print("\n🎬 Executing Accelerated GPU Render Sequence...")
+# ==============================================================================
+# 🛠️ PRE-FLIGHT DIAGNOSTICS INJECTION
+# ==============================================================================
+print("\n" + "="*60)
+print("🛠️ PRE-FLIGHT DIAGNOSTICS")
+print("="*60)
+print("🎬 COMMAND ROUTING:")
+print(" \\\n  ".join(ffmpeg_cmd))
+print("\n")
+
+if RUN_OPTION in [9, 10] and os.path.exists(local_sub):
+    print(f"📄 SUBTITLE PREVIEW ({os.path.basename(local_sub)}) - First 15 lines:")
+    with open(local_sub, 'r', encoding='utf-8') as sf:
+        for i, line in enumerate(sf):
+            if i >= 15: break
+            print(line.strip())
+    print("...\n")
+print("="*60)
+# ==============================================================================
+
+print("\n🎬 Executing High-Speed CPU Render Sequence...")
 process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
 print(f"⏱️  Timeline Target: {total_duration:.2f}s")
 print("="*60 + "\n🎬 VIDEO PROCESSING MONITOR MATRIX\n" + "="*60)
 
+error_log = deque(maxlen=100) 
+
 for line in process.stdout:
     line_str = line.strip()
+    error_log.append(line_str)
+    
     if "time=" in line_str:
         time_match = re.search(r'time=(\d+):(\d+):(\d+\.\d+)', line_str)
         if time_match:
@@ -340,7 +319,6 @@ if process.returncode == 0 and os.path.exists(local_output):
             relative_bg_path = f"outputs/Background/{dest_filename}"
             with open('assets.json', 'r') as db_file:
                 assets_data = json.load(db_file)
-            assets_data['inputs']['background'] = relative_bg_path
             if 'outputs' not in assets_data: assets_data['outputs'] = {}
             assets_data['outputs']['background_video'] = relative_bg_path
             with open('assets.json', 'w') as db_file:
@@ -349,3 +327,5 @@ if process.returncode == 0 and os.path.exists(local_output):
             print(f"⚠️ Warning: Configuration sync error: {e}")
 else:
     print("\n❌ Processing error: Render core terminated abnormally.")
+    print("\n--- 🚨 FFMPEG RAW ERROR LOG 🚨 ---")
+    print("\n".join(error_log))

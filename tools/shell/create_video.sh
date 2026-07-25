@@ -12,7 +12,7 @@ create_karaoke_video() {
 
     echo "⏳ Loading production assets from database registry..."
     
-    local LIVE_BG=$(jq -r '.inputs.background // ""' "$PRESETS")
+    local LIVE_BG=$(jq -r '.outputs.background_video // ""' "$PRESETS")
     local LIVE_INST=$(jq -r '.inputs.instruments_only // ""' "$PRESETS")
     
     local ABS_BG

@@ -10,13 +10,13 @@ create_lyrics_video() {
     local PRESETS="$PROJECT_ROOT/assets.json"
     local JSON_GUARD="$PROJECT_ROOT/tools/shell/validate_json.sh"
 
-    local REQUIRED_ASSET_KEYS=("mixed_audio" "subtitles_ass" "background")
+    local REQUIRED_ASSET_KEYS=("mixed_audio" "subtitles_ass")
     if [[ -f "$JSON_GUARD" ]]; then source "$JSON_GUARD"; validate_required_keys "$(basename "$0")" "${REQUIRED_ASSET_KEYS[@]}"; fi
 
     echo "⏳ Loading production assets from database..."
     local REL_MAIN=$(jq -r '.inputs.mixed_audio // ""' "$PRESETS")
     local REL_SUB=$(jq -r '.inputs.subtitles_ass // ""' "$PRESETS") 
-    local REL_BG=$(jq -r '.inputs.background // ""' "$PRESETS")
+    local REL_BG=$(jq -r '.outputs.background_video // ""' "$PRESETS")
 
     local ABS_MAIN="$PROJECT_ROOT/$REL_MAIN"
     local ABS_SUB="$PROJECT_ROOT/$REL_SUB"
