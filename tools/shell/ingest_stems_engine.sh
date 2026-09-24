@@ -112,20 +112,24 @@ ingest_stems_engine() {
                 return 1
             fi
 
-            local DEMUCS_OUTPUT_DIR="$INPUT_DIR/stems/htdemucs/$TRACK_NAME"
-            local FOUND_VOCALS=$(find "$DEMUCS_OUTPUT_DIR" -name "vocals.$EXT" | head -n 1)
-            local FOUND_INST=$(find "$DEMUCS_OUTPUT_DIR" -name "no_vocals.$EXT" | head -n 1)
+            local DEMUCS_OUTPUT_DIR="$INPUT_DIR/stems/htdemucs/${MIXED_FILE_NAME%.*}"
+            # Use wildcard to find the file regardless of extension (.wav, .mp3, etc.)
+            local FOUND_VOCALS=$(find "$DEMUCS_OUTPUT_DIR" -name "vocals.*" | head -n 1)
+            local FOUND_INST=$(find "$DEMUCS_OUTPUT_DIR" -name "no_vocals.*" | head -n 1)
 
             if [[ -n "$FOUND_VOCALS" && -n "$FOUND_INST" ]]; then
-                local FINAL_VOCALS_PATH="$INPUT_DIR/vocals/${TRACK_NAME}_vocals.$EXT"
-                local FINAL_INST_PATH="$INPUT_DIR/instruments/${TRACK_NAME}_instruments.$EXT"
+                # Extract the actual extension Demucs used (usually wav)
+                local OUT_EXT="${FOUND_VOCALS##*.}"
+                
+                local FINAL_VOCALS_PATH="$INPUT_DIR/vocals/${TRACK_NAME}_vocals.$OUT_EXT"
+                local FINAL_INST_PATH="$INPUT_DIR/instruments/${TRACK_NAME}_instruments.$OUT_EXT"
                 
                 mv "$FOUND_VOCALS" "$FINAL_VOCALS_PATH"
                 mv "$FOUND_INST" "$FINAL_INST_PATH"
                 rm -rf "$INPUT_DIR/stems"
                 
-                local REL_VOCALS="inputs/vocals/${TRACK_NAME}_vocals.$EXT"
-                local REL_INST="inputs/instruments/${TRACK_NAME}_instruments.$EXT"
+                local REL_VOCALS="inputs/vocals/${TRACK_NAME}_vocals.$OUT_EXT"
+                local REL_INST="inputs/instruments/${TRACK_NAME}_instruments.$OUT_EXT"
                 
                 local temp_json=$(mktemp)
                 jq --arg i "$REL_INST" --arg v "$REL_VOCALS" \

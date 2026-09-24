@@ -6,11 +6,6 @@
 #
 # Schema Dependency Guards:
 #   👉 Required .inputs Keys: [ vocals_only ]
-#
-# Safeguard Mechanism:
-#   Intercepts execution immediately during the local variables declaration phase. 
-#   If a key was renamed in assets.json but left un-updated here, it halts execution
-#   instantly to isolate the break, preventing silent downstream tracking failures.
 # ==============================================================================
 
 auto_caption_whisper() {
@@ -33,7 +28,6 @@ auto_caption_whisper() {
     fi
 
     # --- Active Whisper Transcription Pipeline Runs Safely Below ---
-    # Extract the required tracking path fresh from the JSON database
     local VOCALS_ONLY=$(jq -r '.inputs.vocals_only // ""' "$PRESETS")
 
     if [[ -z "$VOCALS_ONLY" || ! -f "$PROJECT_DIR/$VOCALS_ONLY" ]]; then
@@ -45,14 +39,13 @@ auto_caption_whisper() {
     local ABS_VOCALS="$PROJECT_DIR/$VOCALS_ONLY"
     local BASE_NAME=$(basename "$ABS_VOCALS")
     local TRACK_STEM="${BASE_NAME%.*}"
-    # Strip common trailing vocals suffixes so outputs stay clean (e.g., *_Vocals -> *.srt)
+    
     local TRACK_NAME
     TRACK_NAME=$(printf '%s' "$TRACK_STEM" | sed -E 's/([._ -]?[Vv]ocals?)$//')
     if [[ -z "$TRACK_NAME" ]]; then
         TRACK_NAME="$TRACK_STEM"
     fi
 
-    # Keep subtitle assets aligned with the project canonical folder casing
     local SUB_DIR="$INPUT_DIR/Subtitles"
     mkdir -p "$SUB_DIR"
     
@@ -70,13 +63,22 @@ auto_caption_whisper() {
         LANG_CODE="en"
     fi
 
-    echo "⏳ Initializing Whisper execution workspace on host CPU..."
+    echo "⏳ Initializing Whisper execution workspace on Mac GPU..."
     echo "🤖 Loading model dimensions (This may take a few seconds)..."
     
+    # 🛠️ CRASH PREVENTION GUARDS
+    export OMP_NUM_THREADS=1
+    export KMP_DUPLICATE_LIB_OK=TRUE
+    export NUMBA_NUM_THREADS=1
+
     # Run your robust, inline Python Whisper audio parsing engine
     python3 - <<EOF
 import sys
 import os
+import warnings
+
+# Silence the expected FP16 and Numba CPU warnings
+warnings.filterwarnings("ignore")
 
 try:
     print("[DEBUG] 1/6: Validating audio track properties...")
@@ -91,15 +93,17 @@ try:
     import whisper
     from whisper.utils import get_writer
 
-    print("[DEBUG] 4/6: Instantiating base engine on host CPU...")
-    model = whisper.load_model("base", device="cpu")
+    print("[DEBUG] 4/6: Instantiating base engine on Mac GPU (MPS)...")
+    device_target = "cpu"
+    model = whisper.load_model("base", device=device_target)
     
     print("[DEBUG] 5/6: Processing audio blocks (Word Timestamps Enabled)...")
     result = model.transcribe(
         "$ABS_VOCALS",
         language="$LANG_CODE",
         word_timestamps=True,
-        condition_on_previous_text=False
+        condition_on_previous_text=False,
+        fp16=False
     )
     
     print("[DEBUG] 6/6: Complete! Exporting compiled timeframes...")
@@ -113,7 +117,6 @@ except Exception as e:
 EOF
 
     if [ $? -eq 0 ]; then
-        # Re-align naming patterns if Whisper's built-in writer appended an unexpected extension format
         local GENERATED_SRT="$SUB_DIR/${BASE_NAME%.*}.srt"
         if [ -f "$GENERATED_SRT" ] && [ "$GENERATED_SRT" != "$ABS_OUTPUT_SRT" ]; then
             mv "$GENERATED_SRT" "$ABS_OUTPUT_SRT"
@@ -122,7 +125,6 @@ EOF
         if [ -f "$ABS_OUTPUT_SRT" ]; then
             echo "✅ Auto-captioning successful!"
             
-            # Write out exclusively to your subtitles_srt_whisper tracking target inside assets.json
             local temp_json=$(mktemp)
             jq --arg p "$REL_OUTPUT_SRT" '.inputs.subtitles_srt_whisper = $p' "$PRESETS" > "$temp_json" && mv "$temp_json" "$PRESETS"
             
@@ -137,7 +139,6 @@ EOF
     fi
 }
 
-# Execute loop block when triggered directly from command terminal environment
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     auto_caption_whisper
 fi

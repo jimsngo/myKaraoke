@@ -1,131 +1,277 @@
 {
-    "inputs": {
-        "song_title": "M\u1eaft L\u1ec7 Cho Ng\u01b0\u1eddi",
-        "song_author": "(T\u1eeb C\u00f4ng Ph\u1ee5ng)",
-        "mixed_audio": "",
-        "instruments_only": "inputs/Instruments/Mat_Le_Cho_Nguoi_instruments.mp3",
-        "vocals_only": "",
-        "source_midi": "inputs/midi/Mat_Le_Cho_Nguoi.mid",
-        "midi_key": "",
-        "seconds_per_beat": 0.5,
-        "vocalist_gender": "Male",
-        "subtitles_srt": "",
-        "subtitles_ass": "inputs/Subtitles/Mat_Le_Cho_Nguoi.ass",
-        "background_raw": "inputs/Background/White Green Handwritten Photocentric Gardening Outro Youtube Video.mp4",
-        "bpm": 120,
-        "source_musicxml": "",
-        "source_midi_sanitized": "",
-        "subtitles_srt_whisper": "",
-        "background": ""
+  "inputs": {
+    "song_title": "Set Me on Fire",
+    "song_author": "St. Catherine of Sienna",
+    "mixed_audio": "inputs/mixed_audio/St. Catherine of Siena – Set Me on Fire_mixed.mp3",
+    "instruments_only": "inputs/instruments/St. Catherine of Siena – Set Me on Fire_instruments.wav",
+    "vocals_only": "inputs/vocals/St. Catherine of Siena – Set Me on Fire_vocals.wav",
+    "source_midi": "inputs/midi/Remember_your_mercies.mid",
+    "midi_key": "",
+    "seconds_per_beat": 0.5,
+    "vocalist_gender": "Male",
+    "subtitles_srt": "",
+    "subtitles_ass": "inputs/Subtitles/Remember_your_mercies.ass",
+    "background_raw": "inputs/Background/Sky Blue Dark Green Video-centric Place Video Background.mp4",
+    "bpm": 120,
+    "source_musicxml": "",
+    "source_midi_sanitized": "inputs/midi/Remember_your_mercies.sanitized.mid",
+    "subtitles_srt_whisper": "inputs/Subtitles/St. Catherine of Siena – Set Me on Fire.srt",
+    "background": ""
+  },
+  "settings": {
+    "lead_in_beats": 1.0,
+    "min_break_gap": 1.0,
+    "max_gap_seconds": 5.0
+  },
+  "outputs": {
+    "background_video": "outputs/Background/Tình_Mình_Sóng_Biển_optimized_background.mp4",
+    "karaoke_video": "",
+    "lyrics_video": ""
+  },
+  "dashboard_routing": {
+    "1": {
+      "category": "🌐 Preview Control Room",
+      "label": "Initialize Project Session & Launch Browser Preview Room",
+      "script": "tools/shell/view_dashboard.sh",
+      "function": "open_preview_room",
+      "required_scripts": [
+        "tools/shell/view_dashboard.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Subtitles/Tình_Mình_Sóng_Biển.ass",
+          "inputs/Instruments/Tình_Mình_Sóng_Biển.mp3"
+        ],
+        "writes": []
+      }
     },
-    "settings": {
-        "lead_in_beats": 1.0,
-        "min_break_gap": 1.0,
-        "max_gap_seconds": 5.0
+    "2": {
+      "category": "🎼 Audio Stem Engineering",
+      "label": "Process & Populate Stems (Logic Pro Import OR AI Demucs Split)",
+      "script": "tools/shell/ingest_stems_engine.sh",
+      "function": "ingest_stems_engine",
+      "required_scripts": [
+        "tools/shell/ingest_stems_engine.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Audio/Tình_Mình_Sóng_Biển_mix.mp3"
+        ],
+        "writes": [
+          "inputs/Instruments/Tình_Mình_Sóng_Biển.mp3",
+          "inputs/Vocals/Tình_Mình_Sóng_Biển_vocals.mp3"
+        ]
+      }
     },
-    "outputs": {
-        "background_video": "outputs/Background/M\u1eaft_L\u1ec7_Cho_Ng\u01b0\u1eddi_optimized_background.mp4",
-        "karaoke_video": "outputs/Background/Mot_Lan_La_Mai_Mai_karaoke.mp4",
-        "lyrics_video": ""
+    "3": {
+      "category": "🎼 Audio Stem Engineering",
+      "label": "Optimize Track Headroom Peaks (Normalize Gain DB)",
+      "script": "tools/shell/optimized_volume.sh",
+      "function": "optimize_volume",
+      "required_scripts": [
+        "tools/shell/optimized_volume.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Audio/Tình_Mình_Sóng_Biển_mix.mp3",
+          "inputs/Instruments/Tình_Mình_Sóng_Biển.mp3"
+        ],
+        "writes": [
+          "inputs/Audio/Tình_Mình_Sóng_Biển_mix_normalized.mp3",
+          "inputs/Instruments/Tình_Mình_Sóng_Biển_normalized.mp3"
+        ]
+      }
     },
-    "dashboard_routing": {
-        "1": {
-            "category": "\ud83c\udf10 Preview Control Room",
-            "label": "Initialize Project Session & Launch Browser Preview Room",
-            "script": "tools/shell/view_dashboard.sh",
-            "function": "open_preview_room",
-            "note": "Requires 1 script to run: view_dashboard.sh"
-        },
-        "2": {
-            "category": "\ud83c\udfbc Audio Stem Engineering",
-            "label": "Process & Populate Stems (Logic Pro Import OR AI Demucs Split)",
-            "script": "tools/shell/ingest_stems_engine.sh",
-            "function": "ingest_stems_engine",
-            "note": "Requires 1 script to run: ingest_stems_engine.sh"
-        },
-        "3": {
-            "category": "\ud83c\udfbc Audio Stem Engineering",
-            "label": "Optimize Track Headroom Peaks (Normalize Gain DB)",
-            "script": "tools/shell/optimized_volume.sh",
-            "function": "optimize_volume",
-            "note": "Requires 1 script to run: optimized_volume.sh"
-        },
-        "4": {
-            "category": "\ud83d\udcdd Subtitle Tracking Alignment",
-            "label": "Deploy Whisper AI Transcription (Auto-Caption Vocals)",
-            "script": "tools/shell/auto_caption_whisper.sh",
-            "function": "auto_caption_whisper",
-            "note": "Requires 1 script to run: auto_caption_whisper.sh"
-        },
-        "5": {
-            "category": "\ud83d\udcdd Subtitle Tracking Alignment",
-            "label": "Compile Subtitles via MIDI (Runs: tools/python/midi_to_ass.py)",
-            "script": "tools/shell/compile_midi.sh",
-            "function": "compile_midi_subtitles",
-            "note": "Requires 2 scripts to run: compile_midi.sh and midi_to_ass.py"
-        },
-        "6": {
-            "category": "\ud83d\udcdd Subtitle Tracking Alignment",
-            "label": "Import External Production .ASS Subtitle File Layouts",
-            "script": "tools/shell/import_production_ass.sh",
-            "function": "import_ass_subtitles",
-            "note": "Requires 1 script to run: import_production_ass.sh"
-        },
-        "7": {
-            "category": "\ud83c\udfac Video Rendering Suite",
-            "label": "Strip Audio Layer Out From Background Reference Videos",
-            "script": "tools/shell/strip_audio.sh",
-            "function": "strip_audio",
-            "note": "Requires 1 script to run: strip_audio.sh"
-        },
-        "8": {
-            "category": "\ud83c\udfac Video Rendering Suite",
-            "label": "Import & Optimize Background Scenery Videos",
-            "script": "tools/shell/import_background.sh",
-            "function": "import_background",
-            "note": "Requires 1 script to run: import_background.sh"
-        },
-        "9": {
-            "category": "\ud83c\udfac Video Rendering Suite",
-            "label": "Generate High-Res Final Karaoke Video",
-            "script": "tools/shell/create_video.sh",
-            "function": "create_karaoke_video",
-            "note": "Requires 1 script to run: create_video.sh"
-        },
-        "10": {
-            "category": "\ud83c\udfac Video Rendering Suite",
-            "label": "Generate Alternative Full-Mix Lyrics Presentation Video",
-            "script": "tools/shell/create_lyrics_video.sh",
-            "function": "create_lyrics_video",
-            "note": "Requires 1 script to run: create_lyrics_video.sh"
-        },
-        "11": {
-            "category": "\u2699\ufe0f  Workspace Management",
-            "label": "Purge Local Render Output Storage Files",
-            "script": "tools/shell/purge_outputs.sh",
-            "function": "purge_outputs",
-            "note": "Requires 1 script to run: purge_outputs.sh"
-        },
-        "12": {
-            "category": "\u2699\ufe0f  Workspace Management",
-            "label": "Synchronize Project Canvas State Safely to GitHub",
-            "script": "tools/shell/git_sync.sh",
-            "function": "git_sync",
-            "note": "Requires 1 script to run: git_sync.sh"
-        },
-        "13": {
-            "category": "\u2699\ufe0f  Workspace Management",
-            "label": "Validate Project Assets and Naming Consistency",
-            "script": "tools/shell/validate_assets.sh",
-            "function": "validate_project_assets",
-            "note": "Requires 1 script to run: validate_assets.sh"
-        },
-        "14": {
-            "category": "\ud83d\udcdd Subtitle Tracking Alignment",
-            "label": "Export MuseScore-Friendly Sanitized MIDI From Logic MIDI",
-            "script": "tools/shell/export_musescore_xml.sh",
-            "function": "export_musescore_musicxml",
-            "note": "Requires 2 scripts to run: export_musescore_xml.sh and musescore_compat_midi.py"
-        }
+    "4": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Deploy Whisper AI Transcription (Auto-Caption Vocals)",
+      "script": "tools/shell/auto_caption_whisper.sh",
+      "function": "auto_caption_whisper",
+      "required_scripts": [
+        "tools/shell/auto_caption_whisper.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Vocals/Tình_Mình_Sóng_Biển_vocals.mp3"
+        ],
+        "writes": [
+          "inputs/Subtitles/Tình_Mình_Sóng_Biển_whisper.srt"
+        ]
+      }
+    },
+    "5": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Compile Subtitles via MIDI (Runs: tools/python/midi_to_ass.py)",
+      "script": "tools/shell/compile_midi.sh",
+      "function": "compile_midi_subtitles",
+      "required_scripts": [
+        "tools/shell/compile_midi.sh",
+        "tools/python/midi_to_ass.py"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/midi/Remember_your_mercies.mid",
+          "inputs/Instruments/Tình_Mình_Sóng_Biển.mp3"
+        ],
+        "writes": [
+          "inputs/Subtitles/Tình_Mình_Sóng_Biển.ass"
+        ]
+      }
+    },
+    "6": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Import External Production .ASS Subtitle File Layouts",
+      "script": "tools/shell/import_production_ass.sh",
+      "function": "import_ass_subtitles",
+      "required_scripts": [
+        "tools/shell/import_production_ass.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "/Users/jim/Downloads/External_Subtitles.ass"
+        ],
+        "writes": [
+          "inputs/Subtitles/Tình_Mình_Sóng_Biển.ass"
+        ]
+      }
+    },
+    "7": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Strip Audio Layer Out From Background Reference Videos",
+      "script": "tools/shell/strip_audio.sh",
+      "function": "strip_audio",
+      "required_scripts": [
+        "tools/shell/strip_audio.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Background/Sky Blue Dark Green Video-centric Place Video Background.mp4"
+        ],
+        "writes": [
+          "inputs/Background/Sky_Blue_Dark_Green_muted.mp4"
+        ]
+      }
+    },
+    "8": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Import & Optimize Background Scenery Videos",
+      "script": "tools/shell/import_background.sh",
+      "function": "import_background",
+      "required_scripts": [
+        "tools/shell/import_background.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Background/Sky Blue Dark Green Video-centric Place Video Background.mp4"
+        ],
+        "writes": [
+          "outputs/Background/Tình_Mình_Sóng_Biển_optimized_background.mp4"
+        ]
+      }
+    },
+    "9": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Generate High-Res Final Karaoke Video",
+      "script": "tools/shell/create_video.sh",
+      "function": "create_karaoke_video",
+      "required_scripts": [
+        "tools/shell/create_video.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Instruments/Tình_Mình_Sóng_Biển.mp3",
+          "outputs/Background/Tình_Mình_Sóng_Biển_optimized_background.mp4",
+          "inputs/Subtitles/Tình_Mình_Sóng_Biển.ass"
+        ],
+        "writes": [
+          "outputs/Video/Tình_Mình_Sóng_Biển_Karaoke.mp4"
+        ]
+      }
+    },
+    "10": {
+      "category": "🎬 Video Rendering Suite",
+      "label": "Generate Alternative Full-Mix Lyrics Presentation Video",
+      "script": "tools/shell/create_lyrics_video.sh",
+      "function": "create_lyrics_video",
+      "required_scripts": [
+        "tools/shell/create_lyrics_video.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/Audio/Tình_Mình_Sóng_Biển_mix.mp3",
+          "outputs/Background/Tình_Mình_Sóng_Biển_optimized_background.mp4",
+          "inputs/Subtitles/Tình_Mình_Sóng_Biển.ass"
+        ],
+        "writes": [
+          "outputs/Video/Tình_Mình_Sóng_Biển_Lyrics.mp4"
+        ]
+      }
+    },
+    "11": {
+      "category": "⚙️  Workspace Management",
+      "label": "Purge Local Render Output Storage Files",
+      "script": "tools/shell/purge_outputs.sh",
+      "function": "purge_outputs",
+      "required_scripts": [
+        "tools/shell/purge_outputs.sh"
+      ],
+      "media_paths": {
+        "reads": [],
+        "writes": [
+          "outputs/Video/Tình_Mình_Sóng_Biển_Karaoke.mp4",
+          "outputs/Video/Tình_Mình_Sóng_Biển_Lyrics.mp4"
+        ]
+      }
+    },
+    "12": {
+      "category": "⚙️  Workspace Management",
+      "label": "Synchronize Project Canvas State Safely to GitHub",
+      "script": "tools/shell/git_sync.sh",
+      "function": "git_sync",
+      "required_scripts": [
+        "tools/shell/git_sync.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "myKaraoke/ (Entire Directory)"
+        ],
+        "writes": [
+          "Remote GitHub Repository"
+        ]
+      }
+    },
+    "13": {
+      "category": "⚙️  Workspace Management",
+      "label": "Validate Project Assets and Naming Consistency",
+      "script": "tools/shell/validate_assets.sh",
+      "function": "validate_project_assets",
+      "required_scripts": [
+        "tools/shell/validate_assets.sh"
+      ],
+      "media_paths": {
+        "reads": [
+          "assets.json"
+        ],
+        "writes": []
+      }
+    },
+    "14": {
+      "category": "📝 Subtitle Tracking Alignment",
+      "label": "Export MuseScore-Friendly Sanitized MIDI From Logic MIDI",
+      "script": "tools/shell/export_musescore_xml.sh",
+      "function": "export_musescore_musicxml",
+      "required_scripts": [
+        "tools/shell/export_musescore_xml.sh",
+        "tools/python/musescore_compat_midi.py"
+      ],
+      "media_paths": {
+        "reads": [
+          "inputs/midi/Remember_your_mercies.mid"
+        ],
+        "writes": [
+          "inputs/midi/Remember_your_mercies.sanitized.mid"
+        ]
+      }
     }
+  }
 }

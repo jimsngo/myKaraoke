@@ -58,8 +58,8 @@ def compile_ass_file(raw_tokens, out_path, cards_list, styles_map=None, char_scr
     content_lines.append("[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
     FONT = "Arial"
     content_lines.append(f"Style: Title,{FONT},72,{COLOR_BLUE},{COLOR_BLUE},{COLOR_BLACK},{COLOR_BLACK},0,0,0,0,100,100,0,0,1,2,1,5,10,10,10,1\n")
-    content_lines.append(f"Style: Row_Top_Left,{FONT},52,{COLOR_WHITE},{COLOR_WHITE},{COLOR_BLACK},{COLOR_BLACK},0,0,0,0,100,100,0,0,1,2,1,1,80,80,135,1\n")
-    content_lines.append(f"Style: Row_Bottom_Right,{FONT},52,{COLOR_WHITE},{COLOR_WHITE},{COLOR_BLACK},{COLOR_BLACK},0,0,0,0,100,100,0,0,1,2,1,3,80,80,65,1\n\n")
+    content_lines.append(f"Style: Row_Top_Center,{FONT},52,{COLOR_WHITE},{COLOR_WHITE},{COLOR_BLACK},{COLOR_BLACK},0,0,0,0,100,100,0,0,1,2,1,2,80,80,135,1\n")
+    content_lines.append(f"Style: Row_Bottom_Center,{FONT},52,{COLOR_WHITE},{COLOR_WHITE},{COLOR_BLACK},{COLOR_BLACK},0,0,0,0,100,100,0,0,1,2,1,2,80,80,65,1\n\n")
     content_lines.append("[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
 
     intro_end = INTRO_DURATION / 1000.0
@@ -94,7 +94,7 @@ def compile_ass_file(raw_tokens, out_path, cards_list, styles_map=None, char_scr
                 payload_k += f"{{\\k{dur_cs}}}{word}"
                 current_cs = tok_end_cs
 
-            assigned_style = "Row_Top_Left" if current_row == "top" else "Row_Bottom_Right"
+            assigned_style = "Row_Top_Center" if current_row == "top" else "Row_Bottom_Center"
             current_row = "bottom" if current_row == "top" else "top"
 
             card_gender = card.get("style_tag") or "default"
@@ -114,7 +114,7 @@ def compile_ass_file(raw_tokens, out_path, cards_list, styles_map=None, char_scr
     else:
         # alternate-rows: two-slot karaoke with fixed-time gap threshold & [Instruments] cards
         for ci, card in enumerate(cards):
-            slot = "Row_Top_Left" if ci % 2 == 0 else "Row_Bottom_Right"
+            slot = "Row_Top_Center" if ci % 2 == 0 else "Row_Bottom_Center"
             card_gender = card.get("style_tag") or "default"
             past_primary = COLOR_RED if card_gender == "female" else (COLOR_PINK if card_gender == "duet" else COLOR_BLUE)
 
@@ -127,9 +127,17 @@ def compile_ass_file(raw_tokens, out_path, cards_list, styles_map=None, char_scr
                 word = token["text"].lstrip() if w_idx == 0 else token["text"]
                 tok_start_cs = max(0, int(round((token["start_time"] - card["true_start"]) * 100)))
                 
-                # Silent gaps always use the standard \k so the color doesn't bleed during pauses
+                # Process the time gaps (lead-in countdowns vs. pauses between words)
                 if tok_start_cs > current_cs:
-                    payload_k += f"{{\\k{tok_start_cs - current_cs}}}"
+                    gap_dur = tok_start_cs - current_cs
+                    
+                    if w_idx == 0 and gap_dur > 0:
+                        # ⏱️ Visual Countdown: Inject a vertical bar before the first word
+                        payload_k += f"{{{active_k_tag}{gap_dur}}}| "
+                    else:
+                        # Silent gaps between normal words remain completely invisible
+                        payload_k += f"{{\\k{gap_dur}}}"
+                        
                     current_cs = tok_start_cs
                     
                 tok_end_cs = max(current_cs + 1, int(round((token["end_time"] - card["true_start"]) * 100)))
